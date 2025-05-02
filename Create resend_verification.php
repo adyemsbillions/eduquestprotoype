@@ -1,0 +1,38 @@
+<?php
+session_start();
+require 'db_connection.php';
+require 'mail_config.php';
+
+// CSRF protection
+if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+    die("Security token mismatch. Please try again.");
+}
+
+if (isset($_SESSION['pending_verification_email'], $_SESSION['pending_verification_token'])) {
+    $email = $_SESSION['pending_verification_email'];
+    $verification_token = $_SESSION['pending_verification_token'];
+
+    // Update expiration time (give another 24 hours)
+    $token_expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
+    $conn->query("UPDATE users SET token_expires = '$token_expires' WHERE email = '$email'");
+
+    // Resend email
+    $verification_link = "http://yourdomain.com/verify_email.php?token=$verification_token";
+    $email_subject = "Verify Your Email for UNIMAID Resources";
+    $email_body = "
+        <h2>Welcome to UNIMAID Resources!</h2>
+        <p>Please click the link below to verify your email address:</p>
+        <p><a href='$verification_link'>Verify Email</a></p>
+        <p>If you didn't create an account, please ignore this email.</p>
+    ";
+
+    if (sendEmail($email, $email_subject, $email_body)) {
+        header("Location: index.php?resend=success");
+    } else {
+        header("Location: index.php?resend=failed");
+    }
+    exit();
+}
+
+header("Location: index.php");
+exit();

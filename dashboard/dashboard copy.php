@@ -1,0 +1,3190 @@
+<?php
+// Database connection
+$conn = new mysqli("localhost", "root", "", "UNIMAIDCONNECT");
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Start session and get the logged-in user's ID
+// session_start();
+
+
+// Get user information
+$sql_user = "SELECT * FROM users WHERE id = ?";
+$stmt = $conn->prepare($sql_user);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$user_result = $stmt->get_result();
+$user = $user_result->fetch_assoc();
+
+// Handle profile picture update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
+    if (isset($_FILES['new_profile_picture']) && $_FILES['new_profile_picture']['error'] == 0) {
+        $profilePic = $_FILES['new_profile_picture'];
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+        $uploadDir = 'uploads/profile_pictures/';  // Directory to save uploaded images
+
+        // Validate file type
+        if (!in_array($profilePic['type'], $allowedTypes)) {
+            $profileError = "Invalid file type. Please upload a JPG, PNG, or GIF image.";
+        } else {
+            // Use the original file name without modifying it
+            $fileName = basename($profilePic['name']);
+            $filePath = $uploadDir . $fileName;
+
+            // Move the uploaded file to the specified directory
+            if (move_uploaded_file($profilePic['tmp_name'], $filePath)) {
+                // Update the profile picture in the database
+                $query = "UPDATE users SET profile_picture = ? WHERE id = ?";
+                $stmt_update = $conn->prepare($query);
+                $stmt_update->bind_param("si", $filePath, $user_id);
+                if ($stmt_update->execute()) {
+                    $_SESSION['profile_picture'] = $filePath; // Update session data
+                    $profileSuccess = "Profile picture updated successfully.";
+                } else {
+                    $profileError = "Error updating profile picture.";
+                }
+            } else {
+                $profileError = "Error uploading the profile picture.";
+            }
+        }
+    }
+}
+
+// Get the follower count for the user
+$sql_followers = "SELECT COUNT(*) AS followers FROM followers WHERE following_id = ?";
+$stmt_followers = $conn->prepare($sql_followers);
+$stmt_followers->bind_param("i", $user_id);
+$stmt_followers->execute();
+$followers_result = $stmt_followers->get_result();
+$followers_count = $followers_result->fetch_assoc()['followers'];
+
+// Check if the user is already following
+$sql_follow_status = "SELECT COUNT(*) AS is_following FROM followers WHERE follower_id = ? AND following_id = ?";
+$stmt_follow_status = $conn->prepare($sql_follow_status);
+$stmt_follow_status->bind_param("ii", $user_id, $user['id']);
+$stmt_follow_status->execute();
+$follow_status_result = $stmt_follow_status->get_result();
+$follow_status = $follow_status_result->fetch_assoc()['is_following'];
+
+// Handle Follow/Unfollow action via AJAX
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['follow'])) {
+    $action = $_POST['follow_action']; // Either "follow" or "unfollow"
+
+    if ($action === 'follow') {
+        // Follow the user
+        $sql_follow = "INSERT INTO followers (follower_id, following_id) VALUES (?, ?)";
+        $stmt_follow = $conn->prepare($sql_follow);
+        $stmt_follow->bind_param("ii", $user_id, $user['id']);
+        if ($stmt_follow->execute()) {
+            // Return updated follower count and button text
+            $sql_followers = "SELECT COUNT(*) AS followers FROM followers WHERE following_id = ?";
+            $stmt_followers = $conn->prepare($sql_followers);
+            $stmt_followers->bind_param("i", $user_id);
+            $stmt_followers->execute();
+            $followers_result = $stmt_followers->get_result();
+            $followers_count = $followers_result->fetch_assoc()['followers'];
+
+            echo json_encode(['status' => 'success', 'followers_count' => $followers_count, 'button_text' => 'Unfollow']);
+        } else {
+            echo json_encode(['status' => 'error']);
+        }
+    } elseif ($action === 'unfollow') {
+        // Unfollow the user
+        $sql_unfollow = "DELETE FROM followers WHERE follower_id = ? AND following_id = ?";
+        $stmt_unfollow = $conn->prepare($sql_unfollow);
+        $stmt_unfollow->bind_param("ii", $user_id, $user['id']);
+        if ($stmt_unfollow->execute()) {
+            // Return updated follower count and button text
+            $sql_followers = "SELECT COUNT(*) AS followers FROM followers WHERE following_id = ?";
+            $stmt_followers = $conn->prepare($sql_followers);
+            $stmt_followers->bind_param("i", $user_id);
+            $stmt_followers->execute();
+            $followers_result = $stmt_followers->get_result();
+            $followers_count = $followers_result->fetch_assoc()['followers'];
+
+            echo json_encode(['status' => 'success', 'followers_count' => $followers_count, 'button_text' => 'Follow']);
+        } else {
+            echo json_encode(['status' => 'error']);
+        }
+    }
+    exit();
+}
+?>
+              <?php
+// Connect to your database
+$servername = "localhost";
+$username = "root"; // Your MySQL username
+$password = ""; // Your MySQL password
+$dbname = "unimaidconnect"; // Replace with your database name
+
+// Create connection
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Fetch active ad
+$sql = "SELECT image_url, link_url FROM ads WHERE status = 'active' LIMIT 1";
+$result = $conn->query($sql);
+
+// Check if ad exists
+if ($result->num_rows > 0) {
+    // Output ad data
+    $ad = $result->fetch_assoc();
+    $adImage = $ad['image_url'];
+    $adLink = $ad['link_url'];
+} else {
+    // Fallback if no active ad is found
+    $adImage = "";
+    $adLink = "#";
+}
+
+$conn->close();
+?>
+<?php
+// Start session at the top of your script
+session_start();
+
+// Check if user is logged in
+if (!isset($_SESSION['username'])) {
+    // If not logged in, redirect to the login page
+    header("Location: login.php");
+    exit();
+}
+
+// Proceed with the rest of your dashboard logic
+?>
+
+
+<?php
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Check if user is logged in
+if (!isset($_SESSION['username'])) {
+    header("Location: ../login.php");
+    exit();
+}
+
+// Database connection
+$conn = new mysqli("localhost", "root", "", "UNIMAIDCONNECT");
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Fetch user details
+$username = $_SESSION['username'];
+$query = "SELECT * FROM users WHERE username = '$username'";
+$result = $conn->query($query);
+
+if ($result->num_rows === 1) {
+    $user = $result->fetch_assoc();
+} else {
+    echo "Error fetching user details.";
+    exit();
+}
+?>
+
+<?php
+// Database connection
+include("db_connection.php");
+
+// Handle like button click
+if (isset($_POST['like_post'])) {
+    $post_id = $_POST['post_id'];
+    $user_id = 1; // This should come from the logged-in user's session, hardcoded as 1 for now
+    
+    // Check if the user has already liked this post
+    $check_like = "SELECT * FROM post_likes WHERE post_id = ? AND user_id = ?";
+    $stmt = $conn->prepare($check_like);
+    $stmt->bind_param("ii", $post_id, $user_id);
+    $stmt->execute();
+    $result_check = $stmt->get_result();
+    
+    if ($result_check->num_rows == 0) {
+        // Insert the like into the post_likes table
+        $sql_like = "INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)";
+        $stmt = $conn->prepare($sql_like);
+        $stmt->bind_param("ii", $post_id, $user_id);
+        $stmt->execute();
+    }
+}
+
+// Handle comment submission
+if (isset($_POST['comment_text'])) {
+    $post_id = $_POST['post_id'];
+    $user_id = 1; // This should come from the logged-in user's session
+    $comment_text = $_POST['comment_text'];
+
+    // Insert the comment into the database
+    $sql_comment = "INSERT INTO comments (post_id, user_id, comment_text) VALUES (?, ?, ?)";
+    $stmt = $conn->prepare($sql_comment);
+    $stmt->bind_param("iis", $post_id, $user_id, $comment_text);
+    $stmt->execute();
+}
+
+// Fetch posts from the posts table
+$sql_posts = "SELECT p.post_id, p.post_content, p.media_url, p.media_type, p.created_at, p.user_id
+              FROM posts p
+              ORDER BY p.created_at DESC";
+
+$result_posts = $conn->query($sql_posts);
+
+if (!$result_posts) {
+    die("Query failed: " . $conn->error);
+}
+
+?>
+<?php
+// Database connection
+$conn = new mysqli("localhost", "root", "", "UNIMAIDCONNECT");
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Start session and get the logged-in user's ID
+// session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php"); // Redirect to login if not logged in
+    exit();
+}
+
+$user_id = $_SESSION['user_id'];
+
+// Get user information
+$sql_user = "SELECT * FROM users WHERE id = ?";
+$stmt = $conn->prepare($sql_user);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$user_result = $stmt->get_result();
+$user = $user_result->fetch_assoc();
+
+// Handle profile picture update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
+    if (isset($_FILES['new_profile_picture']) && $_FILES['new_profile_picture']['error'] == 0) {
+        $profilePic = $_FILES['new_profile_picture'];
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+        $uploadDir = 'uploads/profile_pictures/';  // Directory to save uploaded images
+
+        // Validate file type
+        if (!in_array($profilePic['type'], $allowedTypes)) {
+            $profileError = "Invalid file type. Please upload a JPG, PNG, or GIF image.";
+        } else {
+            // Use the original file name without modifying it
+            $fileName = basename($profilePic['name']);
+            $filePath = $uploadDir . $fileName;
+
+            // Move the uploaded file to the specified directory
+            if (move_uploaded_file($profilePic['tmp_name'], $filePath)) {
+                // Update the profile picture in the database
+                $query = "UPDATE users SET profile_picture = ? WHERE id = ?";
+                $stmt_update = $conn->prepare($query);
+                $stmt_update->bind_param("si", $filePath, $user_id);
+                if ($stmt_update->execute()) {
+                    $_SESSION['profile_picture'] = $filePath; // Update session data
+                    $profileSuccess = "Profile picture updated successfully.";
+                } else {
+                    $profileError = "Error updating profile picture.";
+                }
+            } else {
+                $profileError = "Error uploading the profile picture.";
+            }
+        }
+    }
+}
+
+// Get the follower count for the user
+$sql_followers = "SELECT COUNT(*) AS followers FROM followers WHERE following_id = ?";
+$stmt_followers = $conn->prepare($sql_followers);
+$stmt_followers->bind_param("i", $user_id);
+$stmt_followers->execute();
+$followers_result = $stmt_followers->get_result();
+$followers_count = $followers_result->fetch_assoc()['followers'];
+
+// Check if the user is already following
+$sql_follow_status = "SELECT COUNT(*) AS is_following FROM followers WHERE follower_id = ? AND following_id = ?";
+$stmt_follow_status = $conn->prepare($sql_follow_status);
+$stmt_follow_status->bind_param("ii", $user_id, $user['id']);
+$stmt_follow_status->execute();
+$follow_status_result = $stmt_follow_status->get_result();
+$follow_status = $follow_status_result->fetch_assoc()['is_following'];
+
+// Handle Follow/Unfollow action via AJAX
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['follow'])) {
+    $action = $_POST['follow_action']; // Either "follow" or "unfollow"
+
+    if ($action === 'follow') {
+        // Follow the user
+        $sql_follow = "INSERT INTO followers (follower_id, following_id) VALUES (?, ?)";
+        $stmt_follow = $conn->prepare($sql_follow);
+        $stmt_follow->bind_param("ii", $user_id, $user['id']);
+        if ($stmt_follow->execute()) {
+            // Return updated follower count and button text
+            $sql_followers = "SELECT COUNT(*) AS followers FROM followers WHERE following_id = ?";
+            $stmt_followers = $conn->prepare($sql_followers);
+            $stmt_followers->bind_param("i", $user_id);
+            $stmt_followers->execute();
+            $followers_result = $stmt_followers->get_result();
+            $followers_count = $followers_result->fetch_assoc()['followers'];
+
+            echo json_encode(['status' => 'success', 'followers_count' => $followers_count, 'button_text' => 'Unfollow']);
+        } else {
+            echo json_encode(['status' => 'error']);
+        }
+    } elseif ($action === 'unfollow') {
+        // Unfollow the user
+        $sql_unfollow = "DELETE FROM followers WHERE follower_id = ? AND following_id = ?";
+        $stmt_unfollow = $conn->prepare($sql_unfollow);
+        $stmt_unfollow->bind_param("ii", $user_id, $user['id']);
+        if ($stmt_unfollow->execute()) {
+            // Return updated follower count and button text
+            $sql_followers = "SELECT COUNT(*) AS followers FROM followers WHERE following_id = ?";
+            $stmt_followers = $conn->prepare($sql_followers);
+            $stmt_followers->bind_param("i", $user_id);
+            $stmt_followers->execute();
+            $followers_result = $stmt_followers->get_result();
+            $followers_count = $followers_result->fetch_assoc()['followers'];
+
+            echo json_encode(['status' => 'success', 'followers_count' => $followers_count, 'button_text' => 'Follow']);
+        } else {
+            echo json_encode(['status' => 'error']);
+        }
+    }
+    exit();
+}
+?>
+
+
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="keywords" content="Circlehub">
+    <meta name="description" content="Circlehub HTML5 Template">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>unimaid connet - CONNECT WITH STUDENTS  IN UNIMAID</title>
+
+    <link rel="shortcut icon" href="images/singlelogo.png" type="image/x-icon">
+    <link rel="stylesheet" href="css/style.css">
+
+</head>
+
+<body>
+
+    <!-- start preloader -->
+    <!-- <div class="preloader align-items-center justify-content-center">
+        <span class="loader"></span>
+    </div> -->
+    <!-- end preloader -->
+
+    <!-- Scroll To Top Start-->
+    <button class="scrollToTop d-none d-lg-block" style="background-color: purple;" ><i class="mat-icon fas fa-angle-double-up"></i></button>
+    <!-- Scroll To Top End -->
+
+    <!-- header-section start -->
+    <header class="header-section header-menu">
+        <nav class="navbar navbar-expand-lg p-0">
+            <div class="container-fluid">
+                <nav class="navbar w-100 navbar-expand-lg justify-content-betweenm">
+                    <a href="index.html" class="navbar-brand">
+                        <img src="images/singlelogo.png" class="logo" alt="logo" width="40px">
+                    </a>
+                    <button class="button search-active d-block d-md-none">
+                        <i class="d-center material-symbols-outlined fs-xxl mat-icon"> search </i>
+                    </button>
+                    <div class="search-form">
+    <form action="search.php" method="GET" class="input-area d-flex align-items-center">
+        <i class="material-symbols-outlined mat-icon">search</i>
+        <input type="text" name="query" placeholder="Search Unimaid Connect" autocomplete="off">
+    </form>
+</div>
+
+                    <ul class="navbar-nav feed flex-row gap-xl-20 gap-lg-10 gap-sm-7 gap-1 py-4 py-lg-0 m-lg-auto ms-auto ms-aut align-self-center">
+                        <li>
+                            <a href="index.html" class="nav-icon home active"><i class="mat-icon fs-xxl material-symbols-outlined mat-icon">home</i></a>
+                        </li>
+                        <li>
+                            <a href="#news-feed" class="nav-icon feed"><i class="mat-icon fs-xxl material-symbols-outlined mat-icon">feed</i></a>
+                        </li>
+                        <li>
+                            <a href="users.php" class="nav-icon"><i class="mat-icon fs-xxl material-symbols-outlined mat-icon">group</i></a>
+                        </li>
+                        <li>
+                            <a href="videos.html" class="nav-icon"><i class="mat-icon fs-xxl material-symbols-outlined mat-icon">smart_display</i></a>
+                        </li>
+                    </ul>
+                    <div class="right-area position-relative d-flex gap-3 gap-xxl-6 align-items-center">
+                        <div class="single-item d-none d-lg-block messages-area">
+                            <div class="messages-btn cmn-head">
+                                <div class="icon-area d-center position-relative">
+                                    <a href="chat.php"><i class="material-symbols-outlined mat-icon">mail</i></a>
+                                   
+                                         
+                                   
+                                   
+                                    <!-- <span class="abs-area position-absolute d-center mdtxt">4</span> -->
+                                </div>
+                            </div>
+                            <div class="main-area p-5 messages-content">
+                                <h5 class="mb-8">Messages</h5>
+                                <div class="single-box p-0 mb-7">
+                                    <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                                        <div class="avatar">
+                                            <img class="avatar-img max-un" src="images/avatar-7.png" alt="avatar">
+                                        </div>
+                                        <div class="text-area">
+                                            <div class="title-area position-relative d-inline-flex align-items-center">
+                                                <h6 class="m-0 d-inline-flex">Piter Maio</h6>
+                                                <span class="abs-area position-absolute d-center mdtxt">3</span>
+                                            </div>
+                                            <p class="mdtxt sms">Amet minim mollit non....</p>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="single-box p-0 mb-7">
+                                    <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                                        <div class="avatar">
+                                            <img class="avatar-img max-un" src="images/avatar-1.png" alt="avatar">
+                                        </div>
+                                        <div class="text-area">
+                                            <h6 class="m-0 mb-1">Annette Black</h6>
+                                            <p class="mdtxt">You: consequat sunt</p>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="single-box p-0 mb-7">
+                                    <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                                        <div class="avatar">
+                                            <img class="avatar-img max-un" src="images/avatar-2.png" alt="avatar">
+                                        </div>
+                                        <div class="text-area">
+                                            <h6 class="m-0 mb-1">Ralph Edwards</h6>
+                                            <p class="mdtxt sms">Amet minim mollit non....</p>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="single-box p-0 mb-7">
+                                    <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                                        <div class="avatar">
+                                            <img class="avatar-img max-un" src="images/avatar-3.png" alt="avatar">
+                                        </div>
+                                        <div class="text-area">
+                                            <h6 class="m-0 mb-1">Darrell Steward</h6>
+                                            <p class="mdtxt">You: consequat sunt</p>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="single-box p-0 mb-7">
+                                    <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                                        <div class="avatar">
+                                            <img class="avatar-img max-un" src="images/avatar-4.png" alt="avatar">
+                                        </div>
+                                        <div class="text-area">
+                                            <h6 class="m-0 mb-1">Wade Warren</h6>
+                                            <p class="mdtxt">You: consequat sunt</p>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="single-box p-0 mb-7">
+                                    <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                                        <div class="avatar">
+                                            <img class="avatar-img max-un" src="images/avatar-5.png" alt="avatar">
+                                        </div>
+                                        <div class="text-area">
+                                            <h6 class="m-0 mb-1">Kathryn Murphy</h6>
+                                            <p class="mdtxt">You: consequat sunt</p>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="single-box p-0 mb-7">
+                                    <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                                        <div class="avatar">
+                                            <img class="avatar-img max-un" src="images/avatar-6.png" alt="avatar">
+                                        </div>
+                                        <div class="text-area">
+                                            <h6 class="m-0 mb-1">Jacob Jones</h6>
+                                            <p class="mdtxt">You: consequat sunt</p>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="btn-area">
+                                    <a href="profile-chat.html">See all inbox</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <?php
+// notifications.php
+
+// Include database connection
+include("db_connection.php");
+
+// Start session to handle logged-in user
+// session_start();
+
+// Assume user is logged in, and their user_id is stored in session
+if (!isset($_SESSION['user_id'])) {
+    // Redirect to login page if not logged in
+    header("Location: login.php");
+    exit();
+}
+
+$user_id = $_SESSION['user_id']; // Logged-in user ID
+
+// Fetch unread notification count for the logged-in user
+$sql_notification_count = "SELECT COUNT(*) AS unread_count FROM notifications WHERE user_id = ? AND is_read = 0";
+$stmt_notification_count = $conn->prepare($sql_notification_count);
+$stmt_notification_count->bind_param("i", $user_id);
+$stmt_notification_count->execute();
+$result_count = $stmt_notification_count->get_result();
+$row = $result_count->fetch_assoc();
+$unread_count = $row['unread_count']; // The unread notification count
+?>
+
+                        <div class="single-item d-none d-lg-block messages-area notification-area">
+                            <div class="notification-btn cmn-head position-relative">
+                                <div class="icon-area d-center position-relative">
+                                   <a href="notifications.php"> <i class="material-symbols-outlined mat-icon">notifications</i></a>
+
+                                   <span class="abs-area position-absolute d-center mdtxt"><?php echo $unread_count; ?></span> 
+                                </div>
+                            </div>
+                            <div class="main-area p-5 notification-content">
+                                <h5 class="mb-8">Notification</h5>
+                                <div class="single-box p-0 mb-7">
+                                    <a href="profile-notification.html" class="d-flex justify-content-between align-items-center">
+                                        <div class="left-item position-relative d-inline-flex gap-3">
+                                            <div class="avatar position-relative d-inline-flex">
+                                                <img class="avatar-img max-un" src="images/avatar-1.png" alt="avatar">
+                                                <img class="abs-item position-absolute max-un" src="images/speech-bubble.png" alt="icon">
+                                            </div>
+                                            <div class="text-area">
+                                                <h6 class="m-0 mb-1">Piter Maio</h6>
+                                                <p class="mdtxt">Comment on your post</p>
+                                            </div>
+                                        </div>
+                                        <div class="time-remaining">
+                                            <p class="mdtxt">Just now</p>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="single-box p-0 mb-7">
+                                    <a href="profile-notification.html" class="d-flex justify-content-between align-items-center">
+                                        <div class="left-item position-relative d-inline-flex gap-3">
+                                            <div class="avatar position-relative d-inline-flex">
+                                                <img class="avatar-img max-un" src="images/avatar-2.png" alt="avatar">
+                                                <img class="abs-item position-absolute max-un" src="images/emoji-love.png" alt="icon">
+                                            </div>
+                                            <div class="text-area">
+                                                <h6 class="m-0 mb-1">Kathryn Murphy</h6>
+                                                <p class="mdtxt">Like your photo</p>
+                                            </div>
+                                        </div>
+                                        <div class="time-remaining">
+                                            <p class="mdtxt">2min</p>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="single-box p-0 mb-7">
+                                    <a href="profile-notification.html" class="d-flex justify-content-between align-items-center">
+                                        <div class="left-item position-relative d-inline-flex gap-3">
+                                            <div class="avatar position-relative d-inline-flex">
+                                                <img class="avatar-img max-un" src="images/avatar-3.png" alt="avatar">
+                                                <img class="abs-item position-absolute max-un" src="images/emoji-love.png" alt="icon">
+                                            </div>
+                                            <div class="text-area">
+                                                <h6 class="m-0 mb-1">Jacob Jones</h6>
+                                                <p class="mdtxt">Sent you a request</p>
+                                            </div>
+                                        </div>
+                                        <div class="time-remaining">
+                                            <p class="mdtxt">1hr</p>
+                                        </div>
+                                    </a>
+                                    <div class="d-flex gap-3 mt-4">
+                                        <button class="cmn-btn">Accept</button>
+                                        <button class="cmn-btn alt">Delete</button>
+                                    </div>
+                                </div>
+                                <div class="single-box p-0 mb-7">
+                                    <a href="profile-notification.html" class="d-flex justify-content-between align-items-center">
+                                        <div class="left-item position-relative d-inline-flex gap-3">
+                                            <div class="avatar position-relative d-inline-flex">
+                                                <img class="avatar-img max-un" src="images/avatar-4.png" alt="avatar">
+                                                <img class="abs-item position-absolute max-un" src="images/emoji-love.png" alt="icon">
+                                            </div>
+                                            <div class="text-area">
+                                                <h6 class="m-0 mb-1">Kathryn Murphy</h6>
+                                                <p class="mdtxt">officia consequat duis enim...</p>
+                                            </div>
+                                        </div>
+                                        <div class="time-remaining">
+                                            <p class="mdtxt">2hr</p>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="btn-area">
+                                    <a href="profile-notification.html">See all notification</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="single-item d-none d-lg-block profile-area position-relative">
+                            <div class="profile-pic d-flex align-items-center">
+                                <span class="avatar cmn-head active-status">
+                               
+                                <img class="avatar-img max-un" src="/unimaidconnect/dashboard/<?php echo htmlspecialchars($user['profile_picture']); ?>" alt="avatar" style="width: 50px; height: 50px; object-fit: cover; border-radius: 10px;">
+                            </span>
+                            </div>
+                            <div class="main-area p-5 profile-content">
+                                <div class="head-area">
+                                    <div class="d-flex gap-3 align-items-center">
+                                        <div class="avatar-item">
+                                        <img class="avatar-img max-un" src="/unimaidconnect/dashboard/<?php echo htmlspecialchars($user['profile_picture']); ?>" alt="avatar" style="width: 60px; height: 60px; object-fit: cover; border-radius: 10px;">
+                                        </div>
+                                        <div class="text-area">
+                                            <h6 class="m-0 mb-1"><?php echo htmlspecialchars($user['username']); ?></h6>
+                                           
+                            
+                                            <p class="mdtxt">   <p>Followers: <span id="followers-count"><?php echo $followers_count; ?></span></p>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="view-profile my-2">
+                                    <a href="profile.php" class="mdtxt w-100 text-center py-2">View profile</a>
+                                </div>
+                                <ul>
+                                    <li>
+                                        <a href="profile-edit.html" class="mdtxt">
+                                            <i class="material-symbols-outlined mat-icon"> settings </i>
+                                            Settings &amp; Privacy
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="logout.php" class="mdtxt">
+                                            <i class="material-symbols-outlined mat-icon"> power_settings_new </i>
+                                            Sign Out
+                                        </a>
+                                    </li>
+                                </ul>
+                                <div class="switch-wrapper mt-4 d-flex gap-1 align-items-center">
+                                    <i class="mat-icon material-symbols-outlined sun icon"> light_mode </i>
+                                    <label class="switch">
+                                        <input type="checkbox" class="checkbox">
+                                        <span class="slider"></span>
+                                    </label>
+                                    <i class="mat-icon material-symbols-outlined moon icon"> dark_mode </i>
+                                    <span class="mdtxt ms-2">Dark mode</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </nav>
+            </div>
+        </nav>
+    </header>
+    <!-- header-section end -->
+
+    <!-- Bottom Menu start -->
+    <div class="header-menu py-3 header-menu d-block d-lg-none position-fixed bottom-0 w-100 cus-z">
+        <div class="right-area position-relative d-flex justify-content-around gap-3 gap-xxl-6 align-items-center">
+            <div class="single-item messages-area">
+                <div class="messages-btn cmn-head">
+                    <div class="icon-area d-center position-relative">
+                       <a href="chat.php"> <i class="material-symbols-outlined mat-icon">mail</i></a>
+                        <!-- <span class="abs-area position-absolute d-center mdtxt">4</span> -->
+                    </div>
+                </div>
+                <div class="main-area p-5 messages-content">
+                    <h5 class="mb-8">Messages</h5>
+                    <div class="single-box p-0 mb-7">
+                        <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                            <div class="avatar">
+                                <img class="avatar-img max-un" src="images/avatar-7.png" alt="avatar">
+                            </div>
+                            <div class="text-area">
+                                <div class="title-area position-relative d-inline-flex align-items-center">
+                                    <h6 class="m-0 d-inline-flex">Piter Maio</h6>
+                                    <span class="abs-area position-absolute d-center mdtxt">3</span>
+                                </div>
+                                <p class="mdtxt sms">Amet minim mollit non....</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="single-box p-0 mb-7">
+                        <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                            <div class="avatar">
+                                <img class="avatar-img max-un" src="images/avatar-1.png" alt="avatar">
+                            </div>
+                            <div class="text-area">
+                                <h6 class="m-0 mb-1">Annette Black</h6>
+                                <p class="mdtxt">You: consequat sunt</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="single-box p-0 mb-7">
+                        <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                            <div class="avatar">
+                                <img class="avatar-img max-un" src="images/avatar-2.png" alt="avatar">
+                            </div>
+                            <div class="text-area">
+                                <h6 class="m-0 mb-1">Ralph Edwards</h6>
+                                <p class="mdtxt sms">Amet minim mollit non....</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="single-box p-0 mb-7">
+                        <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                            <div class="avatar">
+                                <img class="avatar-img max-un" src="images/avatar-3.png" alt="avatar">
+                            </div>
+                            <div class="text-area">
+                                <h6 class="m-0 mb-1">Darrell Steward</h6>
+                                <p class="mdtxt">You: consequat sunt</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="single-box p-0 mb-7">
+                        <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                            <div class="avatar">
+                                <img class="avatar-img max-un" src="images/avatar-4.png" alt="avatar">
+                            </div>
+                            <div class="text-area">
+                                <h6 class="m-0 mb-1">Wade Warren</h6>
+                                <p class="mdtxt">You: consequat sunt</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="single-box p-0 mb-7">
+                        <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                            <div class="avatar">
+                                <img class="avatar-img max-un" src="images/avatar-5.png" alt="avatar">
+                            </div>
+                            <div class="text-area">
+                                <h6 class="m-0 mb-1">Kathryn Murphy</h6>
+                                <p class="mdtxt">You: consequat sunt</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="single-box p-0 mb-7">
+                        <a href="profile-chat.html" class="d-flex gap-2 align-items-center">
+                            <div class="avatar">
+                                <img class="avatar-img max-un" src="images/avatar-6.png" alt="avatar">
+                            </div>
+                            <div class="text-area">
+                                <h6 class="m-0 mb-1">Jacob Jones</h6>
+                                <p class="mdtxt">You: consequat sunt</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="btn-area">
+                        <a href="profile-chat.html">See all inbox</a>
+                    </div>
+                </div>
+            </div>
+            <div class="single-item messages-area notification-area">
+                <div class="notification-btn cmn-head position-relative">
+                    <div class="icon-area d-center position-relative">
+                    <a href="notifications.php"> <i class="material-symbols-outlined mat-icon">notifications</i></a>
+
+<span class="abs-area position-absolute d-center mdtxt"><?php echo $unread_count; ?></span> 
+                    </div>
+                </div>
+                <div class="main-area p-5 notification-content">
+                    <h5 class="mb-8">Notification</h5>
+                    <div class="single-box p-0 mb-7">
+                        <a href="profile-notification.html" class="d-flex justify-content-between align-items-center">
+                            <div class="left-item position-relative d-inline-flex gap-3">
+                                <div class="avatar position-relative d-inline-flex">
+                                    <img class="avatar-img max-un" src="images/avatar-1.png" alt="avatar">
+                                    <img class="abs-item position-absolute max-un" src="images/speech-bubble.png" alt="icon">
+                                </div>
+                                <!-- <div class="text-area">
+                                    <h6 class="m-0 mb-1">Piter Maio</h6>
+                                    <p class="mdtxt">Comment on your post</p>
+                                </div> -->
+                            </div>
+                            <!-- <div class="time-remaining">
+                                <p class="mdtxt">Just now</p>
+                            </div> -->
+                        </a>
+                    </div>
+                    <div class="single-box p-0 mb-7">
+                        <a href="profile-notification.html" class="d-flex justify-content-between align-items-center">
+                            <div class="left-item position-relative d-inline-flex gap-3">
+                                <div class="avatar position-relative d-inline-flex">
+                                    <img class="avatar-img max-un" src="images/avatar-2.png" alt="avatar">
+                                    <img class="abs-item position-absolute max-un" src="images/emoji-love.png" alt="icon">
+                                </div>
+                                <!-- <div class="text-area">
+                                    <h6 class="m-0 mb-1">Kathryn Murphy</h6>
+                                    <p class="mdtxt">Like your photo</p>
+                                </div> -->
+                            </div>
+                            <!-- <div class="time-remaining">
+                                <p class="mdtxt">2min</p>
+                            </div> -->
+                        </a>
+                    </div>
+                    <div class="single-box p-0 mb-7">
+                        <a href="profile-notification.html" class="d-flex justify-content-between align-items-center">
+                            <div class="left-item position-relative d-inline-flex gap-3">
+                                <div class="avatar position-relative d-inline-flex">
+                                    <img class="avatar-img max-un" src="images/avatar-3.png" alt="avatar">
+                                    <img class="abs-item position-absolute max-un" src="images/emoji-love.png" alt="icon">
+                                </div>
+                                <!-- <div class="text-area">
+                                    <h6 class="m-0 mb-1">Jacob Jones</h6>
+                                    <p class="mdtxt">Sent you a request</p>
+                                </div> -->
+                            </div>
+                            <!-- <div class="time-remaining">
+                                <p class="mdtxt">1hr</p>
+                            </div> -->
+                        </a>
+                        <div class="d-flex gap-3 mt-4">
+                            <button class="cmn-btn">Accept</button>
+                            <button class="cmn-btn alt">Delete</button>
+                        </div>
+                    </div>
+                    <div class="single-box p-0 mb-7">
+                        <a href="profile-notification.html" class="d-flex justify-content-between align-items-center">
+                            <div class="left-item position-relative d-inline-flex gap-3">
+                                <div class="avatar position-relative d-inline-flex">
+                                    <img class="avatar-img max-un" src="images/avatar-4.png" alt="avatar">
+                                    <img class="abs-item position-absolute max-un" src="images/emoji-love.png" alt="icon">
+                                </div>
+                                <div class="text-area">
+                                    <h6 class="m-0 mb-1">Kathryn Murphy</h6>
+                                    <p class="mdtxt">officia consequat duis enim...</p>
+                                </div>
+                            </div>
+                            <div class="time-remaining">
+                                <p class="mdtxt">2hr</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="btn-area">
+                        <a href="profile-notification.html">See all notification</a>
+                    </div>
+                </div>
+            </div>
+            <div class="single-item profile-area position-relative">
+                <div class="profile-pic d-flex align-items-center">
+                    <span class="avatar cmn-head active-status">
+                    <img class="avatar-img max-un" src="/unimaidconnect/dashboard/<?php echo htmlspecialchars($user['profile_picture']); ?>" alt="avatar" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50px;">
+                </span>
+                </div>
+                <div class="main-area p-5 profile-content">
+                    <div class="head-area">
+                        <div class="d-flex gap-3 align-items-center">
+                            <div class="avatar-item">
+                            <img class="avatar-img max-un" src="/unimaidconnect/dashboard/<?php echo htmlspecialchars($user['profile_picture']); ?>" alt="avatar" style="width: 60px; height: 60px; object-fit: cover; border-radius: 10px;">
+                            </div>
+                            <div class="text-area">
+                            <h6 class="m-0 mb-1"><?php echo htmlspecialchars($user['username']); ?></h6>
+                                           
+                                <p class="mdtxt">   <p>Followers: <span id="followers-count"><?php echo $followers_count; ?></span></p>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="view-profile my-2">
+                        <a href="profile.php" class="mdtxt w-100 text-center py-2">View profile</a>
+                    </div>
+                    <ul>
+                        <li>
+                            <a href="profile-edit.html" class="mdtxt">
+                                <i class="material-symbols-outlined mat-icon"> settings </i>
+                                Settings &amp; Privacy
+                            </a>
+                        </li>
+                        <li>
+                            <a href="logout.php" class="mdtxt">
+                                <i class="material-symbols-outlined mat-icon"> power_settings_new </i>
+                                Sign Out
+                            </a>
+                        </li>
+                    </ul>
+                    <div class="switch-wrapper mt-4 d-flex gap-1 align-items-center">
+                        <i class="mat-icon material-symbols-outlined sun icon"> light_mode </i>
+                        <label class="switch">
+                            <input type="checkbox" class="checkbox">
+                            <span class="slider"></span>
+                        </label>
+                        <i class="mat-icon material-symbols-outlined moon icon"> dark_mode </i>
+                        <span class="mdtxt ms-2">Dark mode</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Bottom Menu end -->
+
+    <!-- Main Content start -->
+    <main class="main-content sidebar-content">
+        <div class="container-fluid">
+            <div class="row justify-content-between">
+                <div class="col-xxl-3 col-xl-3 col-lg-4 col-6 cus-z2">
+                    <div class="d-inline-block">
+                        <button class="button profile-active mb-4 mb-lg-0 d-flex align-items-center gap-2">
+                            <i class="material-symbols-outlined mat-icon"> tune </i>
+                            <span>My profile</span>
+                        </button>
+                    </div>
+                    <div class="profile-sidebar cus-scrollbar p-5">
+                        <div class="d-block d-lg-none position-absolute end-0 top-0">
+                            <button class="button profile-close">
+                                <i class="material-symbols-outlined mat-icon fs-xl"> close </i>
+                            </button>
+                        </div>
+                        <div class="profile-pic d-flex gap-2 align-items-center">
+                            <div class="avatar position-relative">
+                            <img class="avatar-img max-un" src="/unimaidconnect/dashboard/<?php echo htmlspecialchars($user['profile_picture']); ?>" alt="avatar" style="width: 60px; height: 60px; object-fit: cover; border-radius: 10px;">
+                                  
+
+                            </div>
+                            <div class="text-area">
+                                <h6 class="m-0 mb-1"><a href="profile-post.html">  <p><strong>Welcome back</strong></h6>
+                                <p class="mdtxt">@<?php echo htmlspecialchars($user['username']); ?></p>
+                            
+                            
+                              
+                                <div>
+                                <!-- <i class="material-symbols-outlined mat-icon"> wallet </i> -->
+                                <span><?php echo htmlspecialchars($user['level']); ?></span>
+                                </div>
+                            
+                            
+                            
+                            
+                            
+                            </div>
+                        </div>
+                        <ul class="profile-link mt-7 mb-7 pb-7">
+                            <li>
+                                <a href="loan_request.php" class="d-flex gap-4">
+                                    <i class="material-symbols-outlined mat-icon"> home </i>
+                                    <span>Loan</span>
+                                </a>
+                            </li>
+                           
+                            <li>
+                                <a href="events.php" class="d-flex gap-4">
+                                    <i class="material-symbols-outlined mat-icon"> workspace_premium </i>
+                                    <span>Events</span>
+                                </a>
+                            </li>
+                            <!-- <li>
+                                <a href="create_groups.php" class="d-flex gap-4">
+                                    <i class="material-symbols-outlined mat-icon"> perm_media </i>
+                                    <span>Create Groups</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="view_groups.php" class="d-flex gap-4">
+                                    <i class="material-symbols-outlined mat-icon"> perm_media </i>
+                                    <span>Join Groups</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="my_groups.php" class="d-flex gap-4">
+                                    <i class="material-symbols-outlined mat-icon"> perm_media </i>
+                                    <span>my groups</span>
+                                </a>
+                            </li> -->
+                            <li>
+                                <a href="groupfolder.php" class="d-flex gap-4">
+                                    <i class="material-symbols-outlined mat-icon"> workspaces </i>
+                                    <span>Groups</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="group.html" class="d-flex gap-4">
+                                    <i class="material-symbols-outlined mat-icon"> workspaces </i>
+                                    <span>Quiz</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="mkt.php" class="d-flex gap-4">
+                                    <i class="material-symbols-outlined mat-icon"> store </i>
+                                    <span>Marketplace</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="mkt_post_form.php" class="d-flex gap-4">
+                                    <i class="material-symbols-outlined mat-icon"> sync_saved_locally </i>
+                                    <span>Sell</span>
+                                </a>
+                            </li>
+
+                            <li>
+                                <!-- <a href="setting.html" class="d-flex gap-4">
+                                    <i class="material-symbols-outlined mat-icon"> settings </i>
+                                    <span>Settings</span>
+                                </a> -->
+                            </li>
+
+                        </ul>
+
+                    </div>
+                </div>
+
+
+
+
+
+                <div class="col-xxl-5 col-xl-6 col-lg-8 d-flex flex-column gap-7 mt-0 mt-lg-12 mt-xl-0">
+                  
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ad Space</title>
+    <style>
+    .ad-container {
+        width: 100%;
+        max-width: 728px; /* Maximum width */
+        height: 120px; /* Fixed height */
+        margin: 20px auto;
+        background-color: #f1f1f1;
+        border: 1px solid #ccc;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        transform: translateY(50px);
+        opacity: 0;
+        transition: transform 0.5s ease-out, opacity 0.5s ease-out;
+        border-radius: 5px;
+        overflow: hidden; /* Ensures the image doesn't overflow outside the container */
+    }
+
+    .ad-loading {
+        position: absolute;
+        font-size: 24px;
+        color: #333;
+    }
+
+    .ad-placeholder {
+        font-size: 16px;
+        color: #333;
+    }
+
+    .ad-container:hover {
+        background-color: #e9e9e9;
+    }
+
+    /* Image styling */
+    .ad-placeholder img {
+        width: 100%;          /* Ensure the image scales to the width of the container */
+        height: 100%;         /* Ensure the image scales to the height of the container */
+        object-fit: contain;  /* Ensure the entire image fits within the container, without distortion */
+        object-position: center; /* Keep the image centered inside the container */
+    }
+</style>
+
+</head>
+<body>
+
+    <!-- Ad Space container -->
+    <div class="ad-container" id="ad-space">
+        <div class="ad-loading">Loading Ad...</div>
+        
+        <?php if (!empty($adImage)): ?>
+            <div class="ad-placeholder" style="display: none;">
+    <a href="<?php echo $adLink; ?>" target="_blank">
+        <img src="http://localhost/unimaidconnect/admin/<?php echo $adImage; ?>" alt="Ad Image" width="728" height="90">
+    </a>
+</div>
+
+        <?php else: ?>
+        <div class="ad-placeholder" style="display: none;">
+            <p>Ad Placeholder: No ad available at the moment.</p>
+        </div>
+        <?php endif; ?>
+    </div>
+
+    <script>
+        window.onload = function() {
+            setTimeout(function() {
+                document.querySelector('.ad-loading').style.display = 'none'; // Hide loading message
+                document.querySelector('.ad-placeholder').style.display = 'block'; // Show placeholder content
+
+                var adContainer = document.querySelector('.ad-container');
+                adContainer.style.transform = 'translateY(0)';
+                adContainer.style.opacity = '1';
+            }, 2000); // Simulated loading time (2 seconds)
+        };
+    </script>
+
+</body>
+</html>
+
+<div class="share-post d-flex gap-3 gap-sm-5 p-3 p-sm-5">
+    <div class="profile-box">
+        <img class="avatar-img max-un" src="/unimaidconnect/dashboard/<?php echo htmlspecialchars($user['profile_picture']); ?>" alt="avatar" style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%;">
+   
+   
+   
+    </div>
+    <form action="create_post.php" method="POST" class="w-100 position-relative" enctype="multipart/form-data">
+        <textarea name="post_content" cols="10" rows="2" placeholder="Write something..." class="form-control"></textarea>
+        
+        <!-- Image/Video Preview Area -->
+        <div class="image-preview mt-2" id="imagePreview" style="display: none;">
+            <img src="" id="previewImg" alt="Selected Image Preview" class="img-fluid rounded" style="max-height: 200px;">
+        </div>
+        <div class="video-preview mt-2" id="videoPreview" style="display: none;">
+            <video id="previewVideo" class="img-fluid rounded" controls style="max-height: 200px;"></video>
+        </div>
+        
+        <div class="abs-area position-absolute d-none d-sm-block">
+            <i class="material-symbols-outlined mat-icon xxltxt"> sentiment_satisfied </i>
+        </div>
+        
+        <ul class="d-flex justify-content-between flex-wrap mt-3 gap-3">
+            <li class="d-flex align-items-center gap-2">
+                <button type="submit" class="btn btn-primary" style="background-color: purple;">Post</button>
+            </li>
+            <li class="d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#photoVideoMod">
+                <label for="fileUpload" class="cursor-pointer">
+                    <img src="images/vgallery.png" class="max-un" alt="icon">
+                    <span>Photo/Video</span>
+                </label>
+                <input type="file" name="media" id="fileUpload" accept="image/*,video/*" style="display: none;" onchange="previewFile()">
+            </li>
+            <li class="d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#activityMod">
+                <img src="images/emoji-laughing.png" class="max-un" alt="icon">
+                <span>Fallings/Activity</span>
+            </li>
+        </ul>
+    </form>
+</div>
+
+<script>
+// Function to preview the image or video after selection
+function previewFile() {
+    const file = document.getElementById('fileUpload').files[0];
+    const imagePreview = document.getElementById('imagePreview');
+    const videoPreview = document.getElementById('videoPreview');
+    const previewImg = document.getElementById('previewImg');
+    const previewVideo = document.getElementById('previewVideo');
+
+    // Reset previews
+    imagePreview.style.display = 'none';
+    videoPreview.style.display = 'none';
+    previewImg.src = '';
+    previewVideo.src = '';
+
+    const reader = new FileReader();
+
+    reader.onload = function() {
+        if (file) {
+            if (file.type.startsWith('image/')) {
+                // If it's an image, show image preview
+                imagePreview.style.display = 'block';
+                previewImg.src = reader.result;
+            } else if (file.type.startsWith('video/')) {
+                // If it's a video, show video preview
+                videoPreview.style.display = 'block';
+                previewVideo.src = reader.result;
+            }
+        }
+    };
+
+    if (file) {
+        reader.readAsDataURL(file); // Read the selected file
+    }
+}
+</script>
+<!-- post here -->
+<?php
+
+include 'db_connection.php'; // Include the database configuration file
+
+// Fetch posts to display in the feed
+$sql_posts = "SELECT * FROM posts ORDER BY created_at DESC";
+$result_posts = $conn->query($sql_posts);
+
+// Handle comment submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['comment_text']) && isset($_POST['post_id'])) {
+    $post_id = $_POST['post_id'];
+    $comment_text = $_POST['comment_text'];
+    $user_id = $_SESSION['user_id']; // Assuming the user is logged in and their ID is stored in the session
+
+    // Check for duplicate comments (same text and same timestamp)
+    $check_duplicate_sql = "SELECT * FROM comments WHERE post_id = ? AND comment_text = ? AND DATE(created_at) = CURDATE() ORDER BY created_at DESC LIMIT 1";
+    $stmt = $conn->prepare($check_duplicate_sql);
+    $stmt->bind_param("is", $post_id, $comment_text);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    // If the duplicate comment doesn't exist, insert the comment into the database
+    if ($result->num_rows === 0) {
+        $insert_comment_sql = "INSERT INTO comments (post_id, user_id, comment_text, created_at) VALUES (?, ?, ?, NOW())";
+        $stmt = $conn->prepare($insert_comment_sql);
+        $stmt->bind_param("iis", $post_id, $user_id, $comment_text);
+        $stmt->execute();
+    }
+
+    // Fetch the updated comment count for the post
+    $sql_comment_count = "SELECT COUNT(*) AS comment_count FROM comments WHERE post_id = ?";
+    $stmt = $conn->prepare($sql_comment_count);
+    $stmt->bind_param("i", $post_id);
+    $stmt->execute();
+    $result_comment_count = $stmt->get_result();
+    $comment_count_row = $result_comment_count->fetch_assoc();
+    $comment_count = $comment_count_row ? $comment_count_row['comment_count'] : 0;
+
+    // Fetch the latest comment for the post
+    $sql_comments = "SELECT c.comment_text, u.username, c.created_at
+                     FROM comments c
+                     JOIN users u ON c.user_id = u.id
+                     WHERE c.post_id = ? ORDER BY c.created_at DESC LIMIT 1";
+    $stmt = $conn->prepare($sql_comments);
+    $stmt->bind_param("i", $post_id);
+    $stmt->execute();
+    $result_comments = $stmt->get_result();
+    $latest_comment = $result_comments->fetch_assoc();
+
+    // Prepare HTML for the latest comment
+    $comments_html = "";
+    if ($latest_comment) {
+        $comments_html .= "<div class='comment' id='latest-comment'>";
+        $comments_html .= "<strong>" . htmlspecialchars($latest_comment['username']) . "</strong>: ";
+        $comments_html .= "<p>" . nl2br(htmlspecialchars($latest_comment['comment_text'])) . "</p>";
+        $comments_html .= "<small>" . date('F j, Y, g:i a', strtotime($latest_comment['created_at'])) . "</small>";
+        $comments_html .= "</div>";
+    }
+}
+
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Feed</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <style>
+        /* Add your styles here */
+        .like-loading {
+            font-size: 14px;
+            color: gray;
+        }
+
+        .like-button:disabled, .submit-comment-button:disabled {
+            background-color: #ddd;
+            cursor: not-allowed;
+        }
+
+        /* Hide comments by default */
+        .comments-list {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="feed-container">
+    <?php while ($post = $result_posts->fetch_assoc()): ?>
+        <div class="post-card" id="post-<?php echo $post['post_id']; ?>">
+            <?php
+                // Fetch the user information for each post
+                $user_id = $post['user_id'];
+                $sql_user = "SELECT username, profile_picture FROM users WHERE id = ?";
+                $stmt = $conn->prepare($sql_user);
+                $stmt->bind_param("i", $user_id);
+                $stmt->execute();
+                $result_user = $stmt->get_result();
+                $user = $result_user->fetch_assoc();
+                
+                // Fetch the like count for each post
+                $sql_like_count = "SELECT COUNT(*) AS like_count FROM post_likes WHERE post_id = ?";
+                $stmt = $conn->prepare($sql_like_count);
+                $stmt->bind_param("i", $post['post_id']);
+                $stmt->execute();
+                $result_like_count = $stmt->get_result();
+                $like_count = $result_like_count->fetch_assoc()['like_count'];
+
+                // Fetch the comments count for the post
+                $sql_comment_count = "SELECT COUNT(*) AS comment_count FROM comments WHERE post_id = ?";
+                $stmt = $conn->prepare($sql_comment_count);
+                $stmt->bind_param("i", $post['post_id']);
+                $stmt->execute();
+                $result_comment_count = $stmt->get_result();
+                $comment_count_row = $result_comment_count->fetch_assoc();
+                $comment_count = $comment_count_row ? $comment_count_row['comment_count'] : 0;
+            ?>
+
+            <div class="post-header">
+                <div class="user-info">
+                    <img class="avatar-img" src="/unimaidconnect/dashboard/<?php echo htmlspecialchars($user['profile_picture']); ?>" alt="avatar" style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%; margin-right: 10px;">
+                    <h3><?php echo htmlspecialchars($user['username']); ?></h3>
+                </div>
+                <p class="post-time"><?php echo date('F j, Y, g:i a', strtotime($post['created_at'])); ?></p>
+            </div>
+
+            <div class="post-content">
+                <p><?php echo nl2br(htmlspecialchars($post['post_content'])); ?></p>
+            </div>
+
+            <?php if ($post['media_type'] !== 'none'): ?>
+                <div class="post-media">
+                    <?php if ($post['media_type'] === 'image'): ?>
+                        <img src="<?php echo htmlspecialchars($post['media_url']); ?>" alt="Post Image">
+                    <?php elseif ($post['media_type'] === 'video'): ?>
+                        <video controls>
+                            <source src="<?php echo htmlspecialchars($post['media_url']); ?>" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
+            <div class="post-actions">
+                <form class="like-form" method="POST">
+                    <input type="hidden" name="post_id" value="<?php echo $post['post_id']; ?>" />
+                    <button type="button" class="like-button" data-post-id="<?php echo $post['post_id']; ?>">
+                        <i class="fa fa-thumbs-up"></i> Like
+                    </button>
+                </form>
+
+                <p class="like-count"><?php echo $like_count; ?> Likes</p>
+            </div>
+
+            <div class="comments-section">
+                <h4>Comments:</h4>
+                <a href="view_comments.php?post_id=<?php echo $post['post_id']; ?>" class="show-comments-button">
+                    Show All Comments (<?php echo $comment_count; ?>)
+                </a>
+
+                <!-- Comment Form -->
+                <form class="comment-form" method="POST" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>">
+                    <textarea name="comment_text" placeholder="Add a comment..." required></textarea>
+                    <button type="submit" class="submit-comment-button">Add Comment</button>
+                    <input type="hidden" name="post_id" value="<?php echo $post['post_id']; ?>" />
+                </form>
+
+                <!-- Display Latest Comment -->
+                <div class="comments-list">
+                    <?php if (isset($comments_html)) echo $comments_html; ?>
+                </div>
+            </div>
+        </div>
+    <?php endwhile; ?>
+</div>
+
+<script>
+// Save the current scroll position in localStorage
+$(window).on('beforeunload', function() {
+    localStorage.setItem('scrollPosition', $(window).scrollTop());
+});
+
+// Restore the scroll position after page reload
+$(document).ready(function() {
+    var scrollPosition = localStorage.getItem('scrollPosition');
+    if (scrollPosition) {
+        $(window).scrollTop(scrollPosition);
+    }
+
+    // Show comments on click
+    $('.show-comments-button').on('click', function(e) {
+        $(this).next('.comments-list').toggle();
+    });
+});
+</script>
+
+</body>
+</html>
+
+
+
+<style>
+    /* Style for the post header */
+.post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+}
+
+.user-info h3 {
+    margin: 0;
+}
+
+.post-time {
+    font-size: 12px;
+    color: #888;
+}
+
+.avatar-img {
+    width: 40px;  /* Adjust the image size */
+    height: 40px;
+    object-fit: cover;
+    border-radius: 50%;  /* Makes the image round */
+    margin-right: 10px;  /* Adds space between the image and username */
+}
+
+    .user-avatar {
+    width: 40px;  /* Adjust the size as necessary */
+    height: 40px;
+    object-fit: cover;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+    /* General body styling */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f2f5;
+    margin: 0;
+    padding: 0;
+}
+
+/* Feed Container */
+.feed-container {
+    width: 100%;
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+}
+
+/* Post Card Styling */
+.post-card {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    padding: 15px;
+    transition: transform 0.2s ease-in-out;
+}
+
+.post-card:last-child {
+    margin-bottom: 0;
+}
+
+.post-card:hover {
+    transform: scale(1.02); /* Slightly enlarge the card when hovered */
+}
+
+/* Header Section - User Info */
+.post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.user-info h3 {
+    font-size: 18px;
+    margin: 0;
+    color: #3b5998;
+}
+
+.post-time {
+    font-size: 14px;
+    color: #777;
+}
+
+/* Post Content */
+.post-content {
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 15px;
+}
+
+/* Media Section - Images and Videos */
+.post-media {
+    margin-top: 15px;
+}
+
+.post-media img, .post-media video {
+    max-width: 100%;
+    border-radius: 10px;
+}
+
+/* Like Button */
+.post-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+}
+
+.like-button {
+    background-color: purple;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.like-button:hover {
+    background-color: purple;
+}
+
+/* Like Count */
+.like-count {
+    font-size: 14px;
+    color: #555;
+}
+
+/* Comments Section */
+.comments-section {
+    margin-top: 20px;
+}
+
+.comments-section h4 {
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.comment {
+    margin-bottom: 10px;
+}
+
+.comment strong {
+    font-size: 14px;
+    color: #3b5998;
+}
+
+.comment-time {
+    font-size: 12px;
+    color: #777;
+}
+
+textarea {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    margin-top: 10px;
+    resize: vertical;
+}
+
+.comment-button {
+    background-color: #3b5998;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.comment-button:hover {
+    background-color: #2d4373;
+}
+
+/* Responsiveness */
+@media (max-width: 1200px) {
+    /* For large screens like tablets in landscape mode */
+    .feed-container {
+        padding: 5px;
+    }
+
+    .post-card {
+        padding: 20px;
+    }
+
+    .post-header h3 {
+        font-size: 18px;
+    }
+
+    .post-time {
+        font-size: 14px;
+    }
+
+    .post-content {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 992px) {
+    /* Medium screen devices like tablets */
+    .feed-container {
+        width: 90%;
+    }
+
+    .post-card {
+        padding: 15px;
+    }
+
+    .post-header h3 {
+        font-size: 16px;
+    }
+
+    .post-time {
+        font-size: 12px;
+    }
+
+    .post-content {
+        font-size: 14px;
+    }
+
+    .like-button {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+
+    .like-count {
+        font-size: 12px;
+    }
+
+    .comment-button {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+}
+
+@media (max-width: 768px) {
+    /* For small screens like tablets in portrait mode and large phones */
+    .feed-container {
+        width: 100%;
+        padding: 3px;
+    }
+
+    .post-card {
+        padding: 15px;
+    }
+
+    .post-header h3 {
+        font-size: 16px;
+    }
+
+    .post-time {
+        font-size: 12px;
+    }
+
+    .post-content {
+        font-size: 14px;
+    }
+
+    .like-button {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+
+    .like-count {
+        font-size: 12px;
+    }
+
+    .comment-button {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+
+    textarea {
+        padding: 6px;
+    }
+}
+
+@media (max-width: 576px) {
+    /* For very small screens like mobile phones */
+    .feed-container {
+        width: 100%;
+        padding: 3px;
+    }
+
+    .post-card {
+        padding: 10px;
+    }
+
+    .post-header h3 {
+        font-size: 16px;
+    }
+
+    .post-time {
+        font-size: 12px;
+    }
+
+    .post-content {
+        font-size: 14px;
+    }
+
+    .like-button {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+
+    .like-count {
+        font-size: 12px;
+    }
+
+    .comment-button {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+
+    textarea {
+        padding: 6px;
+    }
+}
+
+/* Extra small screens - adjust for very small phones */
+@media (max-width: 375px) {
+    .post-card {
+        padding: 10px;
+    }
+
+    .like-button, .comment-button {
+        font-size: 12px;
+        padding: 6px 8px;
+    }
+
+    .post-header h3 {
+        font-size: 14px;
+    }
+
+    .post-time {
+        font-size: 12px;
+    }
+
+    .post-content {
+        font-size: 14px;
+    }
+}
+
+</style>
+
+
+                    <div class="post-item d-flex flex-column gap-5 gap-md-7">
+                        <div class="post-single-box p-3 p-sm-5">
+                            <div class="top-area pb-5">
+                                <div class="profile-area d-center justify-content-between">
+                                    <div class="avatar-item d-flex gap-3 align-items-center">
+                                        <div class="avatar position-relative">
+                                        <img class="avatar-img max-un" src="/unimaidconnect/<?php echo htmlspecialchars($user['profile_picture']); ?>" alt="avatar" style="width: 50px; height: 50px; object-fit: cover; border-radius: 10px;">
+                                        </div>
+                                        <div class="info-area">
+                                            <h6 class="m-0"><a href="public-profile-post.html"><?php echo "$username" ?></a></h6>
+                                            <span class="mdtxt status">Active</span>
+                                        </div>
+                                    </div>
+                                    <div class="btn-group cus-dropdown">
+                                        <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                        </button>
+                                        <ul class="dropdown-menu p-4 pt-2">
+
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> person_remove </i>
+                                                    <span>Unfollow</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                    <span>Hide Post</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> lock </i>
+                                                    <span>Block</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> flag </i>
+                                                    <span>Report Post</span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="py-4">
+                                    <p class="description">I created Roughly plugin to sketch crafted hand-drawn elements which can be used to any usage (diagrams/flows/decoration/etc)</p>
+                                </div>
+                                <div class="post-img">
+                                    <img src="images/post-img-1.png" class="w-100" alt="image">
+                                </div>
+                            </div>
+                            <div class="total-react-share pb-4 d-center gap-2 flex-wrap justify-content-between">
+                                <div class="friends-list d-flex gap-3 align-items-center text-center">
+                                    <ul class="d-flex align-items-center justify-content-center">
+                                        <li><img src="images/avatar-2.png" alt="image"></li>
+                                        <li><img src="images/avatar-3.png" alt="image"></li>
+                                        <li><img src="images/avatar-4.png" alt="image"></li>
+                                        <li><span class="mdtxt d-center">8+</span></li>
+                                    </ul>
+                                </div>
+                                <div class="react-list d-flex flex-wrap gap-6 align-items-center text-center">
+                                    <button class="mdtxt">4 Comments</button>
+                                    <button class="mdtxt">1 Shares</button>
+                                </div>
+                            </div>
+                            <div class="like-comment-share py-5 d-center flex-wrap gap-3 gap-md-0 justify-content-between">
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> favorite </i>
+                                    Like
+                                </button>
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> chat </i>
+                                    Comment
+                                </button>
+                                <!-- Share Button -->
+                    <button id="shareButton1" class="d-center gap-1 gap-sm-2 mdtxt">
+                        <i class="material-symbols-outlined mat-icon"> share </i>
+                        Share 1
+                    </button>
+
+                                <!-- Modal Popup -->
+                                <div id="shareModal" class="modal">
+                                    <div class="modal-content">
+                                        <span class="close">&times;</span>
+                                        <p>Copy this link to share:</p>
+                                        <div class="input-container">
+                                            <input type="text" id="shareLink" readonly>
+                                            <svg id="copyIcon" class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M15 7H7v-4h8v4z"></path>
+                                                <path d="M21 12H9v-2h12v2z"></path>
+                                                <path d="M17 17H7v-4h10v4z"></path>
+                                                <path d="M21 22H3v-4h18v4z"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <form action="#">
+                                <div class="d-flex mt-5 gap-3">
+                                    <div class="profile-box d-none d-xxl-block">
+                                        <a href="#"><img src="images/add-post-avatar.png" class="max-un" alt="icon"></a>
+                                    </div>
+                                    <div class="form-content input-area py-1 d-flex gap-2 align-items-center w-100">
+                                        <input placeholder="Write a comment..">
+                                        <div class="file-input d-flex gap-1 gap-md-2">
+                                            <div class="file-upload">
+                                                <label class="file">
+                                                    <input type="file">
+                                                    <span class="file-custom border-0 d-grid text-center">
+                                                        <span class="material-symbols-outlined mat-icon m-0 xxltxt"> gif_box </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                            <div class="file-upload">
+                                                <label class="file">
+                                                    <input type="file">
+                                                    <span class="file-custom border-0 d-grid text-center">
+                                                        <span class="material-symbols-outlined mat-icon m-0 xxltxt"> perm_media </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                            <span class="mood-area">
+                                                <span class="material-symbols-outlined mat-icon m-0 xxltxt"> mood </span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="btn-area d-flex">
+                                        <button class="cmn-btn px-2 px-sm-5 px-lg-6">
+                                            <i class="material-symbols-outlined mat-icon m-0 fs-xxl"> near_me </i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="post-single-box p-3 p-sm-5">
+                            <div class="top-area pb-5">
+                                <div class="profile-area d-center justify-content-between">
+                                    <div class="avatar-item d-flex gap-3 align-items-center">
+                                        <div class="avatar position-relative">
+                                            <img class="avatar-img max-un" src="images/avatar-1.png" alt="avatar">
+                                        </div>
+                                        <div class="info-area">
+                                            <h6 class="m-0"><a href="public-profile-post.html">Lori Cortez</a></h6>
+                                            <span class="mdtxt status">Active</span>
+                                        </div>
+                                    </div>
+                                    <div class="btn-group cus-dropdown">
+                                        <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                        </button>
+                                        <ul class="dropdown-menu p-4 pt-2">
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> bookmark_add </i>
+                                                    <span>Saved Post</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> person_remove </i>
+                                                    <span>Unfollow</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                    <span>Hide Post</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> lock </i>
+                                                    <span>Block</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> flag </i>
+                                                    <span>Report Post</span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="py-4">
+                                    <p class="description">I created Roughly plugin to sketch crafted hand-drawn elements which can be used to any usage (diagrams/flows/decoration/etc)</p>
+                                </div>
+                                <div class="post-img d-flex justify-content-between flex-wrap gap-2 gap-lg-3">
+                                    <div class="single">
+                                        <img src="images/post-img-2.png" alt="image">
+                                    </div>
+                                    <div class="single d-grid gap-3">
+                                        <img src="images/post-img-3.png" alt="image">
+                                        <img src="images/post-img-4.png" alt="image">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="total-react-share pb-4 d-center gap-2 flex-wrap justify-content-between">
+                                <div class="friends-list d-flex gap-3 align-items-center text-center">
+                                    <ul class="d-flex align-items-center justify-content-center">
+                                        <li><img src="images/avatar-2.png" alt="image"></li>
+                                        <li><img src="images/avatar-3.png" alt="image"></li>
+                                        <li><img src="images/avatar-4.png" alt="image"></li>
+                                        <li><span class="mdtxt d-center">8+</span></li>
+                                    </ul>
+                                </div>
+                                <div class="react-list d-flex flex-wrap gap-6 align-items-center text-center">
+                                    <button class="mdtxt">4 Comments</button>
+                                    <button class="mdtxt">1 Shares</button>
+                                </div>
+                            </div>
+                            <div class="like-comment-share py-5 d-center flex-wrap gap-3 gap-md-0 justify-content-between">
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> favorite </i>
+                                    Like
+                                </button>
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> chat </i>
+                                    Comment
+                                </button>
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> share </i>
+                                    Share
+                                </button>
+                            </div>
+                            <form action="#">
+                                <div class="d-flex mt-5 gap-3">
+                                    <div class="profile-box d-none d-xxl-block">
+                                        <a href="#"><img src="images/add-post-avatar.png" class="max-un" alt="icon"></a>
+                                    </div>
+                                    <div class="form-content input-area py-1 d-flex gap-2 align-items-center w-100">
+                                        <input placeholder="Write a comment..">
+                                        <div class="file-input d-flex gap-1 gap-md-2">
+                                            <div class="file-upload">
+                                                <label class="file">
+                                                    <input type="file">
+                                                    <span class="file-custom border-0 d-grid text-center">
+                                                        <span class="material-symbols-outlined mat-icon m-0 xxltxt"> gif_box </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                            <div class="file-upload">
+                                                <label class="file">
+                                                    <input type="file">
+                                                    <span class="file-custom border-0 d-grid text-center">
+                                                        <span class="material-symbols-outlined mat-icon m-0 xxltxt"> perm_media </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                            <span class="mood-area">
+                                                <span class="material-symbols-outlined mat-icon m-0 xxltxt"> mood </span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="btn-area d-flex">
+                                        <button class="cmn-btn px-2 px-sm-5 px-lg-6">
+                                            <i class="material-symbols-outlined mat-icon m-0 fs-xxl"> near_me </i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                            <div class="comments-area mt-5">
+                                <div class="single-comment-area ms-1 ms-xxl-15">
+                                    <div class="parent-comment d-flex gap-2 gap-sm-4">
+                                        <div class="avatar-item d-center align-items-baseline">
+                                            <img class="avatar-img max-un" src="images/avatar-3.png" alt="avatar">
+                                        </div>
+                                        <div class="info-item">
+                                            <div class="top-area px-4 py-3 d-flex gap-3 align-items-start justify-content-between">
+                                                <div class="title-area">
+                                                    <h6 class="m-0 mb-3"><a href="public-profile-post.html">Lori Cortez</a></h6>
+                                                    <p class="mdtxt">The only way to solve the problem is to code for the hardware directly</p>
+                                                </div>
+                                                <div class="btn-group dropend cus-dropdown">
+                                                    <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                    </button>
+                                                    <ul class="dropdown-menu p-4 pt-2">
+                                                        <li>
+                                                            <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                                <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                                <span>Hide Comments</span>
+                                                            </a>
+                                                        </li>
+                                                        <li>
+                                                            <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                                <i class="material-symbols-outlined mat-icon"> flag </i>
+                                                                <span>Report Comments</span>
+                                                            </a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                            <ul class="like-share d-flex gap-6 mt-2">
+                                                <li class="d-center">
+                                                    <button class="mdtxt">Like</button>
+                                                </li>
+                                                <li class="d-center flex-column">
+                                                    <button class="mdtxt reply-btn">Reply</button>
+                                                </li>
+                                                <li class="d-center">
+                                                    <button class="mdtxt">Share</button>
+                                                </li>
+                                            </ul>
+                                            <form action="#" class="comment-form">
+                                                <div class="d-flex gap-3">
+                                                    <input placeholder="Write a comment.." class="py-3">
+                                                    <button class="cmn-btn px-2 px-sm-5 px-lg-6">
+                                                        <i class="material-symbols-outlined mat-icon m-0 fs-xxl"> near_me </i>
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    <div class="single-comment-area comment-item-nested mt-4 mt-sm-7 ms-13 ms-sm-15">
+                                        <div class="d-flex gap-2 gap-sm-4 align-items-baseline">
+                                            <div class="avatar-item">
+                                                <img class="avatar-img max-un" src="images/avatar-4.png" alt="avatar">
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="top-area px-4 py-3 d-flex gap-3 align-items-start justify-content-between">
+                                                    <div class="title-area">
+                                                        <h6 class="m-0 mb-3"><a href="public-profile-post.html">Alex</a></h6>
+                                                        <p class="mdtxt">The only way to solve the</p>
+                                                    </div>
+                                                    <div class="btn-group dropend cus-dropdown">
+                                                        <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                            <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                        </button>
+                                                        <ul class="dropdown-menu p-4 pt-2">
+                                                            <li>
+                                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                                    <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                                    <span>Hide Comments</span>
+                                                                </a>
+                                                            </li>
+                                                            <li>
+                                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                                    <i class="material-symbols-outlined mat-icon"> flag </i>
+                                                                    <span>Report Comments</span>
+                                                                </a>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <ul class="like-share d-flex gap-6 mt-2">
+                                                    <li class="d-center">
+                                                        <button class="mdtxt">Like</button>
+                                                    </li>
+                                                    <li class="d-center flex-column">
+                                                        <button class="mdtxt reply-btn">Reply</button>
+                                                    </li>
+                                                    <li class="d-center">
+                                                        <button class="mdtxt">Share</button>
+                                                    </li>
+                                                </ul>
+                                                <form action="#" class="comment-form">
+                                                    <div class="d-flex gap-3">
+                                                        <input placeholder="Write a comment.." class="py-3">
+                                                        <button class="cmn-btn px-2 px-sm-5 px-lg-6">
+                                                            <i class="material-symbols-outlined mat-icon m-0 fs-xxl"> near_me </i>
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="post-single-box p-3 p-sm-5">
+                            <div class="top-area pb-5">
+                                <div class="profile-area d-center justify-content-between">
+                                    <div class="avatar-item d-flex gap-3 align-items-center">
+                                        <div class="avatar-item">
+                                            <img class="avatar-img max-un" src="images/avatar-5.png" alt="avatar">
+                                        </div>
+                                        <div class="info-area">
+                                            <h6 class="m-0"><a href="public-profile-post.html">Loprayos</a></h6>
+                                            <span class="mdtxt status">20m Ago</span>
+                                        </div>
+                                    </div>
+                                    <div class="btn-group cus-dropdown">
+                                        <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                        </button>
+                                        <ul class="dropdown-menu p-4 pt-2">
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> bookmark_add </i>
+                                                    <span>Saved Post</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> person_remove </i>
+                                                    <span>Unfollow</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                    <span>Hide Post</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> lock </i>
+                                                    <span>Block</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> flag </i>
+                                                    <span>Report Post</span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="py-4">
+                                    <p class="description">Nam ornare a nibh id sagittis. Vestibulum nec molestie urna, eget convallis mi. Vestibulum rhoncus ligula eget sem sollicitudin interdum. Aliquam massa lectus, fringilla non diam ut, laoreet convallis risus. Curabitur at metus imperdiet, pellentesque ligula vel,</p>
+                                </div>
+                            </div>
+                            <div class="total-react-share pb-4 d-center gap-2 flex-wrap justify-content-between">
+                                <div class="friends-list d-flex gap-3 align-items-center text-center">
+                                    <ul class="d-flex align-items-center justify-content-center">
+                                        <li><img src="images/avatar-2.png" alt="image"></li>
+                                        <li><img src="images/avatar-3.png" alt="image"></li>
+                                        <li><img src="images/avatar-4.png" alt="image"></li>
+                                        <li><span class="mdtxt d-center">8+</span></li>
+                                    </ul>
+                                </div>
+                                <div class="react-list d-flex flex-wrap gap-6 align-items-center text-center">
+                                    <button class="mdtxt">4 Comments</button>
+                                    <button class="mdtxt">1 Shares</button>
+                                </div>
+                            </div>
+                            <div class="like-comment-share py-5 d-center flex-wrap gap-3 gap-md-0 justify-content-between">
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> favorite </i>
+                                    Like
+                                </button>
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> chat </i>
+                                    Comment
+                                </button>
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> share </i>
+                                    Share
+                                </button>
+                            </div>
+                            <form action="#">
+                                <div class="d-flex mt-5 gap-3">
+                                    <div class="profile-box d-none d-xxl-block">
+                                        <a href="#"><img src="images/add-post-avatar.png" class="max-un" alt="icon"></a>
+                                    </div>
+                                    <div class="form-content input-area py-1 d-flex gap-2 align-items-center w-100">
+                                        <input placeholder="Write a comment..">
+                                        <div class="file-input d-flex gap-1 gap-md-2">
+                                            <div class="file-upload">
+                                                <label class="file">
+                                                    <input type="file">
+                                                    <span class="file-custom border-0 d-grid text-center">
+                                                        <span class="material-symbols-outlined mat-icon m-0 xxltxt"> gif_box </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                            <div class="file-upload">
+                                                <label class="file">
+                                                    <input type="file">
+                                                    <span class="file-custom border-0 d-grid text-center">
+                                                        <span class="material-symbols-outlined mat-icon m-0 xxltxt"> perm_media </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                            <span class="mood-area">
+                                                <span class="material-symbols-outlined mat-icon m-0 xxltxt"> mood </span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="btn-area d-flex">
+                                        <button class="cmn-btn px-2 px-sm-5 px-lg-6">
+                                            <i class="material-symbols-outlined mat-icon m-0 fs-xxl"> near_me </i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                            <div class="comments-area mt-5">
+                                <div class="single-comment-area ms-1 ms-xxl-15">
+                                    <div class="parent-comment d-flex gap-2 gap-sm-4">
+                                        <div class="avatar-item d-center align-items-baseline">
+                                            <img class="avatar-img max-un" src="images/avatar-3.png" alt="avatar">
+                                        </div>
+                                        <div class="info-item active">
+                                            <div class="top-area px-4 py-3 d-flex gap-3 align-items-start justify-content-between">
+                                                <div class="title-area">
+                                                    <h6 class="m-0 mb-3"><a href="public-profile-post.html">Lori Cortez</a></h6>
+                                                    <p class="mdtxt">The only way to solve the problem is to code for the hardware directly</p>
+                                                </div>
+                                                <div class="btn-group dropend cus-dropdown">
+                                                    <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                    </button>
+                                                    <ul class="dropdown-menu p-4 pt-2">
+                                                        <li>
+                                                            <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                                <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                                <span>Hide Comments</span>
+                                                            </a>
+                                                        </li>
+                                                        <li>
+                                                            <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                                <i class="material-symbols-outlined mat-icon"> flag </i>
+                                                                <span>Report Comments</span>
+                                                            </a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                            <ul class="like-share d-flex gap-6 mt-2">
+                                                <li class="d-center">
+                                                    <button class="mdtxt">Like</button>
+                                                </li>
+                                                <li class="d-center flex-column">
+                                                    <button class="mdtxt reply-btn">Reply</button>
+                                                </li>
+                                                <li class="d-center">
+                                                    <button class="mdtxt">Share</button>
+                                                </li>
+                                            </ul>
+                                            <form action="#" class="comment-form">
+                                                <div class="d-flex gap-3">
+                                                    <input placeholder="Write a comment.." class="py-3">
+                                                    <button class="cmn-btn px-2 px-sm-5 px-lg-6">
+                                                        <i class="material-symbols-outlined mat-icon m-0 fs-xxl"> near_me </i>
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    <div class="sibling-comment comment-item-nested single-comment-area mt-7 ms-13 ms-sm-15">
+                                        <div class="d-flex gap-2 gap-sm-4 align-items-baseline">
+                                            <div class="avatar-item">
+                                                <img class="avatar-img max-un" src="images/avatar-4.png" alt="avatar">
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="top-area px-4 py-3 d-flex gap-3 align-items-start justify-content-between">
+                                                    <div class="title-area">
+                                                        <h6 class="m-0 mb-3"><a href="public-profile-post.html">Alexa</a></h6>
+                                                        <p class="mdtxt">The only way to solve the</p>
+                                                    </div>
+                                                    <div class="btn-group dropend cus-dropdown">
+                                                        <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                            <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                        </button>
+                                                        <ul class="dropdown-menu p-4 pt-2">
+                                                            <li>
+                                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                                    <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                                    <span>Hide Comments</span>
+                                                                </a>
+                                                            </li>
+                                                            <li>
+                                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                                    <i class="material-symbols-outlined mat-icon"> flag </i>
+                                                                    <span>Report Comments</span>
+                                                                </a>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <ul class="like-share d-flex gap-6 mt-2">
+                                                    <li class="d-center">
+                                                        <button class="mdtxt">Like</button>
+                                                    </li>
+                                                    <li class="d-center flex-column">
+                                                        <button class="mdtxt reply-btn">Reply</button>
+                                                    </li>
+                                                    <li class="d-center">
+                                                        <button class="mdtxt">Share</button>
+                                                    </li>
+                                                </ul>
+                                                <form action="#" class="comment-form">
+                                                    <div class="d-flex gap-3">
+                                                        <input placeholder="Write a comment.." class="py-3">
+                                                        <button class="cmn-btn px-2 px-sm-5 px-lg-6">
+                                                            <i class="material-symbols-outlined mat-icon m-0 fs-xxl"> near_me </i>
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="single-comment-area comment-item-nested mt-7 ms-13 ms-sm-15">
+                                        <div class="d-flex gap-2 gap-sm-4 align-items-baseline">
+                                            <div class="avatar-item">
+                                                <img class="avatar-img max-un" src="images/avatar-7.png" alt="avatar">
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="top-area px-4 py-3 d-flex gap-3 align-items-start justify-content-between">
+                                                    <div class="title-area">
+                                                        <h6 class="m-0 mb-3"><a href="public-profile-post.html">Haplika</a></h6>
+                                                        <p class="mdtxt">The only way to solve the</p>
+                                                    </div>
+                                                    <div class="btn-group dropend cus-dropdown">
+                                                        <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                            <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                        </button>
+                                                        <ul class="dropdown-menu p-4 pt-2">
+                                                            <li>
+                                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                                    <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                                    <span>Hide Comments</span>
+                                                                </a>
+                                                            </li>
+                                                            <li>
+                                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                                    <i class="material-symbols-outlined mat-icon"> flag </i>
+                                                                    <span>Report Comments</span>
+                                                                </a>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <ul class="like-share d-flex gap-6 mt-2">
+                                                    <li class="d-center">
+                                                        <button class="mdtxt">Like</button>
+                                                    </li>
+                                                    <li class="d-center flex-column">
+                                                        <button class="mdtxt reply-btn">Reply</button>
+                                                    </li>
+                                                    <li class="d-center">
+                                                        <button class="mdtxt">Share</button>
+                                                    </li>
+                                                </ul>
+                                                <form action="#" class="comment-form">
+                                                    <div class="d-flex gap-3">
+                                                        <input placeholder="Write a comment.." class="py-3">
+                                                        <button class="cmn-btn px-2 px-sm-5 px-lg-6">
+                                                            <i class="material-symbols-outlined mat-icon m-0 fs-xxl"> near_me </i>
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="comments-area mt-5">
+                                <div class="single-comment-area ms-1 ms-xxl-15">
+                                    <div class="d-flex gap-4">
+                                        <div class="avatar-item d-center align-items-baseline">
+                                            <img class="avatar-img max-un" src="images/avatar-3.png" alt="avatar">
+                                        </div>
+                                        <div class="info-item w-100">
+                                            <div class="top-area px-4 py-3 d-flex gap-3 align-items-start justify-content-between">
+                                                <div class="title-area">
+                                                    <h6 class="m-0 mb-3"><a href="public-profile-post.html">Marlio</a></h6>
+                                                    <div class="post-img">
+                                                        <img src="images/emoji-love-2.png" alt="icon">
+                                                    </div>
+                                                </div>
+                                                <div class="btn-group dropend cus-dropdown">
+                                                    <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                    </button>
+                                                    <ul class="dropdown-menu p-4 pt-2">
+                                                        <li>
+                                                            <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                                <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                                <span>Hide Comments</span>
+                                                            </a>
+                                                        </li>
+                                                        <li>
+                                                            <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                                <i class="material-symbols-outlined mat-icon"> flag </i>
+                                                                <span>Report Comments</span>
+                                                            </a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                            <ul class="like-share d-flex gap-6 mt-2">
+                                                <li class="d-center">
+                                                    <button class="mdtxt">Like</button>
+                                                </li>
+                                                <li class="d-center flex-column">
+                                                    <button class="mdtxt reply-btn">Reply</button>
+                                                </li>
+                                                <li class="d-center">
+                                                    <button class="mdtxt">Share</button>
+                                                </li>
+                                            </ul>
+                                            <form action="#" class="comment-form">
+                                                <div class="d-flex gap-3">
+                                                    <input placeholder="Write a comment.." class="py-3">
+                                                    <button class="cmn-btn px-2 px-sm-5 px-lg-6">
+                                                        <i class="material-symbols-outlined mat-icon m-0 fs-xxl"> near_me </i>
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="post-single-box p-3 p-sm-5">
+                            <div class="top-area pb-5">
+                                <div class="profile-area d-center justify-content-between">
+                                    <div class="avatar-item d-flex gap-3 align-items-center">
+                                        <div class="avatar position-relative">
+                                            <img class="avatar-img max-un" src="images/avatar-1.png" alt="avatar">
+                                        </div>
+                                        <div class="info-area">
+                                            <h6 class="m-0"><a href="public-profile-post.html">Lori Cortez</a></h6>
+                                            <span class="mdtxt status">Active</span>
+                                        </div>
+                                    </div>
+                                    <div class="btn-group cus-dropdown">
+                                        <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                        </button>
+                                        <ul class="dropdown-menu p-4 pt-2">
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> bookmark_add </i>
+                                                    <span>Saved Post</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> person_remove </i>
+                                                    <span>Unfollow</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                    <span>Hide Post</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> lock </i>
+                                                    <span>Block</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> flag </i>
+                                                    <span>Report Post</span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="py-4">
+                                    <p class="description">My Travel Video</p>
+                                    <p class="hastag d-flex gap-2">
+                                        <a href="#">#Viral</a>
+                                        <a href="#">#travel</a>
+                                    </p>
+                                </div>
+                                <div class="post-img video-item">
+                                    <div class="plyr__video-embed player">
+                                        <iframe src="https://www.youtube.com/embed/LXb3EKWsInQ"></iframe>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="total-react-share pb-4 d-center gap-2 flex-wrap justify-content-between">
+                                <div class="friends-list d-flex gap-3 align-items-center text-center">
+                                    <ul class="d-flex align-items-center justify-content-center">
+                                        <li><img src="images/avatar-2.png" alt="image"></li>
+                                        <li><img src="images/avatar-3.png" alt="image"></li>
+                                        <li><img src="images/avatar-4.png" alt="image"></li>
+                                        <li><span class="mdtxt d-center">8+</span></li>
+                                    </ul>
+                                </div>
+                                <div class="react-list d-flex flex-wrap gap-6 align-items-center text-center">
+                                    <button class="mdtxt">4 Comments</button>
+                                    <button class="mdtxt">1 Shares</button>
+                                </div>
+                            </div>
+                            <div class="like-comment-share py-5 d-center flex-wrap gap-3 gap-md-0 justify-content-between">
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> favorite </i>
+                                    Like
+                                </button>
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> chat </i>
+                                    Comment
+                                </button>
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> share </i>
+                                    Share
+                                </button>
+                            </div>
+                            <form action="#">
+                                <div class="d-flex mt-5 gap-3">
+                                    <div class="profile-box d-none d-xxl-block">
+                                        <a href="#"><img src="images/add-post-avatar.png" class="max-un" alt="icon"></a>
+                                    </div>
+                                    <div class="form-content input-area py-1 d-flex gap-2 align-items-center w-100">
+                                        <input placeholder="Write a comment..">
+                                        <div class="file-input d-flex gap-1 gap-md-2">
+                                            <div class="file-upload">
+                                                <label class="file">
+                                                    <input type="file">
+                                                    <span class="file-custom border-0 d-grid text-center">
+                                                        <span class="material-symbols-outlined mat-icon m-0 xxltxt"> gif_box </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                            <div class="file-upload">
+                                                <label class="file">
+                                                    <input type="file">
+                                                    <span class="file-custom border-0 d-grid text-center">
+                                                        <span class="material-symbols-outlined mat-icon m-0 xxltxt"> perm_media </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                            <span class="mood-area">
+                                                <span class="material-symbols-outlined mat-icon m-0 xxltxt"> mood </span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="btn-area d-flex">
+                                        <button class="cmn-btn px-2 px-sm-5 px-lg-6">
+                                            <i class="material-symbols-outlined mat-icon m-0 fs-xxl"> near_me </i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="post-single-box p-3 p-sm-5">
+                            <div class="top-area pb-5">
+                                <div class="profile-area d-center justify-content-between">
+                                    <div class="avatar-item d-flex gap-3 align-items-center">
+                                        <div class="avatar position-relative">
+                                            <img class="avatar-img max-un" src="images/avatar-1.png" alt="avatar">
+                                        </div>
+                                        <div class="info-area">
+                                            <h6 class="m-0"><a href="public-profile-post.html">Lori Cortez</a></h6>
+                                            <span class="mdtxt status">Active</span>
+                                        </div>
+                                    </div>
+                                    <div class="btn-group cus-dropdown">
+                                        <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                        </button>
+                                        <ul class="dropdown-menu p-4 pt-2">
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> bookmark_add </i>
+                                                    <span>Saved Post</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> person_remove </i>
+                                                    <span>Unfollow</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                    <span>Hide Post</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> lock </i>
+                                                    <span>Block</span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                    <i class="material-symbols-outlined mat-icon"> flag </i>
+                                                    <span>Report Post</span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="py-4">
+                                    <p class="description">I created Roughly plugin to sketch crafted hand-drawn elements which can be used to any usage (diagrams/flows/decoration/etc)</p>
+                                </div>
+                                <div class="post-img">
+                                    <img src="images/post-img-1.png" class="w-100" alt="image">
+                                </div>
+                            </div>
+                            <div class="total-react-share pb-4 d-center gap-2 flex-wrap justify-content-between">
+                                <div class="friends-list d-flex gap-3 align-items-center text-center">
+                                    <ul class="d-flex align-items-center justify-content-center">
+                                        <li><img src="images/avatar-2.png" alt="image"></li>
+                                        <li><img src="images/avatar-3.png" alt="image"></li>
+                                        <li><img src="images/avatar-4.png" alt="image"></li>
+                                        <li><span class="mdtxt d-center">8+</span></li>
+                                    </ul>
+                                </div>
+                                <div class="react-list d-flex flex-wrap gap-6 align-items-center text-center">
+                                    <button class="mdtxt">4 Comments</button>
+                                    <button class="mdtxt">1 Shares</button>
+                                </div>
+                            </div>
+                            <div class="like-comment-share py-5 d-center flex-wrap gap-3 gap-md-0 justify-content-between">
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> favorite </i>
+                                    Like
+                                </button>
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> chat </i>
+                                    Comment
+                                </button>
+                                <button class="d-center gap-1 gap-sm-2 mdtxt">
+                                    <i class="material-symbols-outlined mat-icon"> share </i>
+                                    Share
+                                </button>
+                            </div>
+                            <form action="#">
+                                <div class="d-flex mt-5 gap-3">
+                                    <div class="profile-box d-none d-xxl-block">
+                                        <a href="#"><img src="images/add-post-avatar.png" class="max-un" alt="icon"></a>
+                                    </div>
+                                    <div class="form-content input-area py-1 d-flex gap-2 align-items-center w-100">
+                                        <input placeholder="Write a comment..">
+                                        <div class="file-input d-flex gap-1 gap-md-2">
+                                            <div class="file-upload">
+                                                <label class="file">
+                                                    <input type="file">
+                                                    <span class="file-custom border-0 d-grid text-center">
+                                                        <span class="material-symbols-outlined mat-icon m-0 xxltxt"> gif_box </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                            <div class="file-upload">
+                                                <label class="file">
+                                                    <input type="file">
+                                                    <span class="file-custom border-0 d-grid text-center">
+                                                        <span class="material-symbols-outlined mat-icon m-0 xxltxt"> perm_media </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                            <span class="mood-area">
+                                                <span class="material-symbols-outlined mat-icon m-0 xxltxt"> mood </span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="btn-area d-flex">
+                                        <button class="cmn-btn px-2 px-sm-5 px-lg-6">
+                                            <i class="material-symbols-outlined mat-icon m-0 fs-xxl"> near_me </i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xxl-3 col-xl-3 col-lg-4 col-6 mt-5 mt-xl-0">
+                    <div class="cus-scrollbar cus-overflow contact-sidebar-head">
+                        <div class="d-flex justify-content-end mb-4">
+                            <button class="button contact-active mb-4 mb-lg-0 d-flex align-items-center gap-2">
+                                <span>Contacts</span>
+                                <i class="material-symbols-outlined mat-icon"> tune </i>
+                            </button>
+                        </div>
+                        <div class="cus-scrollbar contact-sidebar">
+                            <div class="sidebar-wrapper d-flex al-item justify-content-end justify-content-xl-center flex-column flex-md-row flex-xl-column flex gap-6">
+                                <div class="d-block d-lg-none position-absolute end-0 top-0">
+                                    <button class="button contact-close">
+                                        <i class="material-symbols-outlined mat-icon fs-xl"> close </i>
+                                    </button>
+                                </div>
+                                <div class="sidebar-area p-5">
+                                    <div class="title-bar">
+                                        <h6 class="mb-4">Contact</h6>
+                                    </div>
+                                    <div class="d-flex flex-column gap-6">
+                                        <div class="profile-area d-center position-relative align-items-center justify-content-between">
+                                            <div class="avatar-item d-flex gap-3 align-items-center">
+                                                <div class="avatar-item">
+                                                    <img class="avatar-img max-un" src="images/avatar-6.png" alt="avatar">
+                                                </div>
+                                                <div class="info-area">
+                                                    <h6 class="m-0"><a href="public-profile-post.html" class="mdtxt">Piter Maio</a></h6>
+                                                </div>
+                                            </div>
+                                            <span class="mdtxt abs-area d-center position-absolute end-0">5</span>
+                                        </div>
+                                        <div class="profile-area d-center justify-content-between">
+                                            <div class="avatar-item d-flex gap-3 align-items-center">
+                                                <div class="avatar-item">
+                                                    <img class="avatar-img max-un" src="images/avatar-7.png" alt="avatar">
+                                                </div>
+                                                <div class="info-area">
+                                                    <h6 class="m-0"><a href="public-profile-post.html" class="mdtxt">Floyd Miles</a></h6>
+                                                </div>
+                                            </div>
+                                            <div class="btn-group cus-dropdown dropend">
+                                                <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                </button>
+                                                <ul class="dropdown-menu p-4 pt-2">
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> person_remove </i>
+                                                            <span>Unfollow</span>
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                            <span>Hide Contact</span>
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div class="profile-area d-center justify-content-between">
+                                            <div class="avatar-item d-flex gap-3 align-items-center">
+                                                <div class="avatar-item">
+                                                    <img class="avatar-img max-un" src="images/avatar-8.png" alt="avatar">
+                                                </div>
+                                                <div class="info-area">
+                                                    <h6 class="m-0"><a href="public-profile-post.html" class="mdtxt">Darrell Steward</a></h6>
+                                                </div>
+                                            </div>
+                                            <div class="btn-group cus-dropdown dropend">
+                                                <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                </button>
+                                                <ul class="dropdown-menu p-4 pt-2">
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> person_remove </i>
+                                                            <span>Unfollow</span>
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                            <span>Hide Contact</span>
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div class="profile-area d-center justify-content-between">
+                                            <div class="avatar-item d-flex gap-3 align-items-center">
+                                                <div class="avatar-item">
+                                                    <img class="avatar-img max-un" src="images/avatar-2.png" alt="avatar">
+                                                </div>
+                                                <div class="info-area">
+                                                    <h6 class="m-0"><a href="public-profile-post.html" class="mdtxt">Kristin Watson</a></h6>
+                                                </div>
+                                            </div>
+                                            <div class="btn-group cus-dropdown dropend">
+                                                <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                </button>
+                                                <ul class="dropdown-menu p-4 pt-2">
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> person_remove </i>
+                                                            <span>Unfollow</span>
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                            <span>Hide Contact</span>
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div class="profile-area d-center justify-content-between">
+                                            <div class="avatar-item d-flex gap-3 align-items-center">
+                                                <div class="avatar-item">
+                                                    <img class="avatar-img max-un" src="images/avatar-3.png" alt="avatar">
+                                                </div>
+                                                <div class="info-area">
+                                                    <h6 class="m-0"><a href="public-profile-post.html" class="mdtxt">Jane Cooper</a></h6>
+                                                </div>
+                                            </div>
+                                            <div class="btn-group cus-dropdown dropend">
+                                                <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                </button>
+                                                <ul class="dropdown-menu p-4 pt-2">
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> person_remove </i>
+                                                            <span>Unfollow</span>
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                            <span>Hide Contact</span>
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div class="profile-area d-center justify-content-between">
+                                            <div class="avatar-item d-flex gap-3 align-items-center">
+                                                <div class="avatar-item">
+                                                    <img class="avatar-img max-un" src="images/avatar-4.png" alt="avatar">
+                                                </div>
+                                                <div class="info-area">
+                                                    <h6 class="m-0"><a href="public-profile-post.html" class="mdtxt">Devon Lane</a></h6>
+                                                </div>
+                                            </div>
+                                            <div class="btn-group cus-dropdown dropend">
+                                                <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                </button>
+                                                <ul class="dropdown-menu p-4 pt-2">
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> person_remove </i>
+                                                            <span>Unfollow</span>
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                            <span>Hide Contact</span>
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div class="profile-area d-center justify-content-between">
+                                            <div class="avatar-item d-flex gap-3 align-items-center">
+                                                <div class="avatar-item">
+                                                    <img class="avatar-img max-un" src="images/avatar-9.png" alt="avatar">
+                                                </div>
+                                                <div class="info-area">
+                                                    <h6 class="m-0"><a href="public-profile-post.html" class="mdtxt">Annette Black</a></h6>
+                                                </div>
+                                            </div>
+                                            <div class="btn-group cus-dropdown dropend">
+                                                <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                </button>
+                                                <ul class="dropdown-menu p-4 pt-2">
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> person_remove </i>
+                                                            <span>Unfollow</span>
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                            <span>Hide Contact</span>
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div class="profile-area d-center justify-content-between">
+                                            <div class="avatar-item d-flex gap-3 align-items-center">
+                                                <div class="avatar-item">
+                                                    <img class="avatar-img max-un" src="images/avatar-10.png" alt="avatar">
+                                                </div>
+                                                <div class="info-area">
+                                                    <h6 class="m-0"><a href="public-profile-post.html" class="mdtxt">Jerome Bell</a></h6>
+                                                </div>
+                                            </div>
+                                            <div class="btn-group cus-dropdown dropend">
+                                                <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                </button>
+                                                <ul class="dropdown-menu p-4 pt-2">
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> person_remove </i>
+                                                            <span>Unfollow</span>
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                            <span>Hide Contact</span>
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div class="profile-area d-center justify-content-between">
+                                            <div class="avatar-item d-flex gap-3 align-items-center">
+                                                <div class="avatar-item">
+                                                    <img class="avatar-img max-un" src="images/avatar-11.png" alt="avatar">
+                                                </div>
+                                                <div class="info-area">
+                                                    <h6 class="m-0"><a href="public-profile-post.html" class="mdtxt">Guy Hawkins</a></h6>
+                                                </div>
+                                            </div>
+                                            <div class="btn-group cus-dropdown dropend">
+                                                <button type="button" class="dropdown-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="material-symbols-outlined fs-xxl m-0"> more_horiz </i>
+                                                </button>
+                                                <ul class="dropdown-menu p-4 pt-2">
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> person_remove </i>
+                                                            <span>Unfollow</span>
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="droplist d-flex align-items-center gap-2" href="#">
+                                                            <i class="material-symbols-outlined mat-icon"> hide_source </i>
+                                                            <span>Hide Contact</span>
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <!-- Main Content end -->
+
+    <!-- Go Live Popup start -->
+<!--
+    <div class="go-live-popup">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="modal cmn-modal fade" id="goLiveMod">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content p-5">
+                                <div class="modal-header justify-content-center">
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                                        <i class="material-symbols-outlined mat-icon xxltxt"> close </i>
+                                    </button>
+                                </div>
+                                <div class="top-content pb-5">
+                                    <h5>Go Live</h5>
+                                </div>
+                                <div class="mid-area">
+                                    <div class="d-flex mb-5 gap-3">
+                                        <div class="profile-box">
+                                            <a href="#"><img src="images/add-post-avatar.png" class="max-un" alt="icon"></a>
+                                        </div>
+                                        <textarea cols="10" rows="2" placeholder="Write something.."></textarea>
+                                    </div>
+                                    <div class="file-upload">
+                                        <label>Upload attachment</label>
+                                        <label class="file mt-1">
+                                            <input type="file">
+                                            <span class="file-custom pt-8 pb-8 d-grid text-center">
+                                                <i class="material-symbols-outlined mat-icon"> perm_media </i>
+                                                <span>Drag here or click to upload photo.</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="footer-area pt-5">
+                                    <div class="btn-area d-flex justify-content-end gap-2">
+                                        <button type="button" class="cmn-btn alt" data-bs-dismiss="modal" aria-label="Close">Cancel</button>
+                                        <button class="cmn-btn">Go Live</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div> -->
+    <!-- Go Live Popup end -->
+
+    <!-- video popup start -->
+    <!-- <div class="go-live-popup video-popup">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="modal cmn-modal fade" id="photoVideoMod">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content p-5">
+                                <div class="modal-header justify-content-center">
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                                        <i class="material-symbols-outlined mat-icon xxltxt"> close </i>
+                                    </button>
+                                </div>
+                                <div class="top-content pb-5">
+                                    <h5>Add post photo/video</h5>
+                                </div>
+                                <div class="mid-area">
+                                    <div class="d-flex mb-5 gap-3">
+                                        <div class="profile-box">
+                                            <a href="#"><img src="images/add-post-avatar.png" class="max-un" alt="icon"></a>
+                                        </div>
+                                        <textarea cols="10" rows="2" placeholder="Write something.."></textarea>
+                                    </div>
+                                    <div class="file-upload">
+                                        <label>Upload attachment</label>
+                                        <label class="file mt-1">
+                                            <input type="file">
+                                            <span class="file-custom pt-8 pb-8 d-grid text-center">
+                                                <i class="material-symbols-outlined mat-icon"> perm_media </i>
+                                                <span>Drag here or click to upload photo.</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="footer-area pt-5">
+                                    <div class="btn-area d-flex justify-content-end gap-2">
+                                        <button type="button" class="cmn-btn alt" data-bs-dismiss="modal" aria-label="Close">Cancel</button>
+                                        <button class="cmn-btn">Post</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div> -->
+    <!-- video popup end -->
+
+    <!-- Go Live Popup start -->
+    <div class="go-live-popup">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="modal cmn-modal fade" id="activityMod">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content p-5">
+                                <div class="modal-header justify-content-center">
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                                        <i class="material-symbols-outlined mat-icon xxltxt"> close </i>
+                                    </button>
+                                </div>
+                                <div class="top-content pb-5">
+                                    <h5>Create post</h5>
+                                </div>
+                                <div class="mid-area">
+                                    <div class="d-flex mb-5 gap-3">
+                                        <div class="profile-box">
+                                            <a href="#"><img src="images/add-post-avatar.png" class="max-un" alt="icon"></a>
+                                        </div>
+                                        <textarea cols="10" rows="2" placeholder="Write something.."></textarea>
+                                    </div>
+                                    <div class="file-upload">
+                                        <label>Upload attachment</label>
+                                        <label class="file mt-1">
+                                            <input type="file">
+                                            <span class="file-custom pt-8 pb-8 d-grid text-center">
+                                                <i class="material-symbols-outlined mat-icon"> perm_media </i>
+                                                <span>Drag here or click to upload photo.</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <div class="tooltips-area d-flex mt-3 gap-2">
+                                        <button type="button" class="btn d-center" data-bs-toggle="tooltip" data-bs-placement="top" title="Fallings/Activity">
+                                            <i class="material-symbols-outlined mat-icon"> mood </i>
+                                        </button>
+                                        <button type="button" class="btn d-center" data-bs-toggle="tooltip" data-bs-placement="top" title="Video">
+                                            <i class="material-symbols-outlined mat-icon"> movie </i>
+                                        </button>
+                                        <button type="button" class="btn d-center" data-bs-toggle="tooltip" data-bs-placement="top" title="Maps">
+                                            <i class="material-symbols-outlined mat-icon"> location_on </i>
+                                        </button>
+                                        <button type="button" class="btn d-center" data-bs-toggle="tooltip" data-bs-placement="top" title="Tag">
+                                            <i class="material-symbols-outlined mat-icon"> sell </i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="footer-area d-flex justify-content-between pt-5">
+                                    <div class="left-area">
+                                        <select>
+                                            <option value="1">Public</option>
+                                            <option value="2">Only Me</option>
+                                            <option value="3">Friends</option>
+                                            <option value="4">Custom</option>
+                                        </select>
+                                    </div>
+                                    <div class="btn-area d-flex justify-content-end gap-2">
+                                        <button type="button" class="cmn-btn alt" data-bs-dismiss="modal" aria-label="Close">Cancel</button>
+                                        <button class="cmn-btn">Post</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Go Live Popup end -->
+
+    <!--==================================================================-->
+    <script src="js/jquery.min.js"></script>
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/slick.js"></script>
+    <script src="js/jquery.nice-select.min.js"></script>
+    <script src="js/plyr.js"></script>
+    <!-- <script src="assets/js/plugins/apexcharts.js"></script> -->
+    <script src="js/wow.min.js"></script>
+    <script src="js/plugin.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/script.js"></script>
+
+</body></html>

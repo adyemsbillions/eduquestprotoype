@@ -1,0 +1,130 @@
+<?php
+session_start();
+
+// Check if user is logged in and is an approved class rep
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['reps_status']) || $_SESSION['reps_status'] !== 'approved') {
+    header("Location: login.php");
+    exit();
+}
+
+// Database connection with error handling
+try {
+    $conn = new mysqli('localhost', 'unimaid9_unimaidresources', '#adyems123AD', 'unimaid9_unimaidresources');
+    if ($conn->connect_error) {
+        throw new Exception("Connection failed: " . $conn->connect_error);
+    }
+} catch (Exception $e) {
+    die("Database connection error: " . $e->getMessage());
+}
+
+// Get groups where the current user is a class rep
+$userId = $_SESSION['user_id'];
+
+// Handle post request to update can_post status
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['group_id'])) {
+    $groupId = filter_input(INPUT_POST, 'group_id', FILTER_VALIDATE_INT);
+    $canPost = isset($_POST['can_post']) ? 1 : 0;
+
+    // Verify the user is a class rep for this group
+    $checkStmt = $conn->prepare("SELECT COUNT(*) FROM class_reps WHERE user_id = ? AND group_id = ?");
+    $checkStmt->bind_param("ii", $userId, $groupId);
+    $checkStmt->execute();
+    $checkResult = $checkStmt->get_result()->fetch_row()[0];
+    
+    if ($groupId === false || $checkResult == 0) {
+        $error = "Invalid group ID or insufficient permissions";
+    } else {
+        $sqlUpdatePostStatus = "UPDATE `groups` SET can_post = ? WHERE id = ?";
+        $stmt = $conn->prepare($sqlUpdatePostStatus);
+        $stmt->bind_param("ii", $canPost, $groupId);
+        
+        if ($stmt->execute()) {
+            $_SESSION['success_message'] = "Group post settings updated successfully!";
+            header("Location: group_settings.php");
+            exit();
+        } else {
+            $error = "Error updating settings: " . $conn->error;
+        }
+        $stmt->close();
+    }
+    $checkStmt->close();
+}
+
+// Fetch groups where user is a class rep
+$sql = "SELECT g.id, g.name, g.can_post 
+        FROM `groups` g 
+        INNER JOIN class_reps cr ON g.id = cr.group_id 
+        WHERE cr.user_id = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("i", $userId);
+$stmt->execute();
+$result = $stmt->get_result();
+
+// Function to get member count
+function getGroupMemberCount($groupId, $conn) {
+    $sql = "SELECT COUNT(*) as member_count FROM group_members WHERE group_id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $groupId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+    return $row['member_count'];
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Your Groups</title>
+    <!-- Your existing CSS styles remain unchanged -->
+    <style>
+        /* Your existing CSS styles */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="logout.php" class="logout">Logout</a>
+        <h1>Manage Your Groups</h1>
+
+        <?php
+        if (isset($_SESSION['success_message'])) {
+            echo '<div class="message success">' . htmlspecialchars($_SESSION['success_message']) . '</div>';
+            unset($_SESSION['success_message']);
+        }
+        if (isset($error)) {
+            echo '<div class="message error">' . htmlspecialchars($error) . '</div>';
+        }
+        ?>
+
+        <div class="group-list">
+            <?php if ($result->num_rows > 0): ?>
+                <?php while ($group = $result->fetch_assoc()): ?>
+                    <div class="group-item">
+                        <h3><?php echo htmlspecialchars($group['name']); ?></h3>
+                        <form action="group_settings.php" method="POST" onsubmit="return confirm('Are you sure you want to save these settings?');">
+                            <input type="hidden" name="group_id" value="<?php echo $group['id']; ?>">
+                            <label for="can_post_<?php echo $group['id']; ?>">Allow Members to Post:</label>
+                            <input type="checkbox" 
+                                   id="can_post_<?php echo $group['id']; ?>" 
+                                   name="can_post" 
+                                   <?php echo $group['can_post'] ? 'checked' : ''; ?>>
+                            <input type="submit" value="Save Settings">
+                        </form>
+                        <p><strong>Number of Members:</strong> <?php echo getGroupMemberCount($group['id'], $conn); ?></p>
+                    </div>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <div class="no-groups">You are not a class representative for any groups.</div>
+            <?php endif; ?>
+        </div>
+    </div>
+</body>
+</html>
+
+<?php
+$stmt->close();
+$conn->close();
+?>

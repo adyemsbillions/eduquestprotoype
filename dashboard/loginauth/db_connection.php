@@ -1,0 +1,3 @@
+<?php
+// Sample PHP file
+?>

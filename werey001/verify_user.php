@@ -2,10 +2,11 @@
 require_once 'db_connection.php';
 
 // Function to prepare and execute with retry and fallback
-function prepareAndExecute($conn, $sql, $param_type, ...$params) {
+function prepareAndExecute($conn, $sql, $param_type, ...$params)
+{
     $max_attempts = 3;
     $attempt = 0;
-    
+
     while ($attempt < $max_attempts) {
         $stmt = null;
         try {
@@ -13,11 +14,11 @@ function prepareAndExecute($conn, $sql, $param_type, ...$params) {
             if (!$stmt) {
                 throw new Exception("Prepare failed: " . $conn->error . " (errno: " . $conn->errno . ")");
             }
-            
+
             if (!empty($params)) {
                 $stmt->bind_param($param_type, ...$params);
             }
-            
+
             if ($stmt->execute()) {
                 return $stmt;
             }
@@ -25,9 +26,9 @@ function prepareAndExecute($conn, $sql, $param_type, ...$params) {
         } catch (Exception $e) {
             $attempt++;
             if ($stmt) $stmt->close();
-            
+
             error_log("Attempt $attempt failed: " . $e->getMessage());
-            
+
             if ($attempt == $max_attempts) {
                 // Fallback to non-prepared statement as last resort
                 try {
@@ -42,7 +43,7 @@ function prepareAndExecute($conn, $sql, $param_type, ...$params) {
                     throw new Exception("All attempts failed: " . $e->getMessage() . "; Fallback: " . $fallback_e->getMessage());
                 }
             }
-            
+
             // Attempt reconnection on specific errors
             if ($conn->errno == 2006 || $conn->errno == 2013) {
                 $conn->close();
@@ -60,7 +61,7 @@ function prepareAndExecute($conn, $sql, $param_type, ...$params) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id']) && isset($_POST['action'])) {
     $user_id = filter_var($_POST['user_id'], FILTER_VALIDATE_INT);
     $action = $_POST['action'];
-    
+
     if (!$user_id) {
         echo json_encode(["status" => "error", "message" => "Invalid user ID"]);
         exit;
@@ -84,13 +85,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id']) && isset($
         $stmt = prepareAndExecute($conn, $sql, "ii", $verification_types[$action]['value'], $user_id);
         if ($stmt) $stmt->close();
         echo json_encode([
-            "status" => "success", 
+            "status" => "success",
             "message" => $verification_types[$action]['message']
         ]);
     } catch (Exception $e) {
         error_log("Verification Error: " . $e->getMessage() . " (errno: " . $conn->errno . ")");
         echo json_encode([
-            "status" => "error", 
+            "status" => "error",
             "message" => "Error updating verification: " . $e->getMessage()
         ]);
     }
@@ -140,6 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['manual_search'])) {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -149,212 +151,275 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['manual_search'])) {
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
     <style>
-        :root {
-            --blue: #2196F3;
-            --gold: #FFD700;
-            --black: #333;
-            --pink: #FF66B2;
-            --red: #F44336;
-            --white: #fff;
-            --shadow: 0 4px 6px rgba(0,0,0,0.1);
-            --transition: all 0.3s ease;
-        }
+    :root {
+        --blue: #2196F3;
+        --gold: #FFD700;
+        --black: #333;
+        --pink: #FF66B2;
+        --red: #F44336;
+        --white: #fff;
+        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        --transition: all 0.3s ease;
+    }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
 
-        body {
-            font-family: 'Roboto', sans-serif;
-            background: linear-gradient(135deg, #f4f7fc 0%, #e8eef6 100%);
-            min-height: 100vh;
-            color: #333;
-        }
+    body {
+        font-family: 'Roboto', sans-serif;
+        background: linear-gradient(135deg, #f4f7fc 0%, #e8eef6 100%);
+        min-height: 100vh;
+        color: #333;
+    }
 
-        .container {
-            max-width: 1200px;
-            margin: 40px auto;
-            padding: 20px;
-        }
+    .container {
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 20px;
+    }
 
-        h2 {
-            text-align: center;
-            color: #2196F3;
-            font-size: 2.2rem;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+    h2 {
+        text-align: center;
+        color: #2196F3;
+        font-size: 2.2rem;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
 
-        .search-container {
-            margin-bottom: 30px;
-            text-align: center;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-        }
+    .search-container {
+        margin-bottom: 30px;
+        text-align: center;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
 
-        #search-input {
-            padding: 12px 20px;
-            width: 50%;
-            max-width: 400px;
-            border: 2px solid #ddd;
-            border-radius: 25px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-        }
+    #search-input {
+        padding: 12px 20px;
+        width: 50%;
+        max-width: 400px;
+        border: 2px solid #ddd;
+        border-radius: 25px;
+        font-size: 1rem;
+        transition: border-color 0.3s ease;
+    }
 
-        #search-input:focus {
-            border-color: var(--blue);
-            outline: none;
-            box-shadow: 0 0 5px rgba(33, 150, 243, 0.3);
-        }
+    #search-input:focus {
+        border-color: var(--blue);
+        outline: none;
+        box-shadow: 0 0 5px rgba(33, 150, 243, 0.3);
+    }
 
-        #search-btn {
-            padding: 12px 20px;
-            background: var(--blue);
-            color: var(--white);
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: var(--transition);
-        }
+    #search-btn {
+        padding: 12px 20px;
+        background: var(--blue);
+        color: var(--white);
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: var(--transition);
+    }
 
-        #search-btn:hover {
-            background: #1976D2;
-        }
+    #search-btn:hover {
+        background: #1976D2;
+    }
 
-        .ui-autocomplete {
-            background: var(--white);
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            max-height: 200px;
-            overflow-y: auto;
-            box-shadow: var(--shadow);
-            z-index: 1000;
-        }
+    .ui-autocomplete {
+        background: var(--white);
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        max-height: 200px;
+        overflow-y: auto;
+        box-shadow: var(--shadow);
+        z-index: 1000;
+    }
 
-        .ui-menu-item {
-            padding: 8px 12px;
-            cursor: pointer;
-        }
+    .ui-menu-item {
+        padding: 8px 12px;
+        cursor: pointer;
+    }
 
-        .ui-menu-item:hover {
-            background: #f0f0f0;
-        }
+    .ui-menu-item:hover {
+        background: #f0f0f0;
+    }
 
-        .user-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            padding: 10px;
-        }
+    .user-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+        padding: 10px;
+    }
 
+    .user-card {
+        background: var(--white);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: var(--shadow);
+        transition: var(--transition);
+        text-align: center;
+    }
+
+    .user-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .user-card img {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        margin-bottom: 15px;
+        object-fit: cover;
+        border: 3px solid #ddd;
+    }
+
+    .user-card p {
+        font-size: 1.1rem;
+        font-weight: 500;
+        margin-bottom: 15px;
+        color: #444;
+    }
+
+    .button-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .user-card button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: var(--transition);
+    }
+
+    .blue-verify-btn {
+        background: var(--blue);
+        color: var(--white);
+    }
+
+    .gold-verify-btn {
+        background: var(--gold);
+        color: #333;
+    }
+
+    .black-verify-btn {
+        background: var(--black);
+        color: var(--white);
+    }
+
+    .pink-verify-btn {
+        background: var(--pink);
+        color: var(--white);
+    }
+
+    .unverify-btn {
+        background: var(--red);
+        color: var(--white);
+    }
+
+    .blue-verify-btn:hover {
+        background: #1976D2;
+    }
+
+    .gold-verify-btn:hover {
+        background: #FFC107;
+    }
+
+    .black-verify-btn:hover {
+        background: #555;
+    }
+
+    .pink-verify-btn:hover {
+        background: #FF4081;
+    }
+
+    .unverify-btn:hover {
+        background: #D32F2F;
+    }
+
+    .alert {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 15px 30px;
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+    }
+
+    .alert.success {
+        background: #4CAF50;
+        color: var(--white);
+    }
+
+    .alert.error {
+        background: var(--red);
+        color: var(--white);
+    }
+
+    @media (max-width: 768px) {
         .user-card {
-            background: var(--white);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: var(--shadow);
-            transition: var(--transition);
-            text-align: center;
-        }
-
-        .user-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            padding: 15px;
         }
 
         .user-card img {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            margin-bottom: 15px;
-            object-fit: cover;
-            border: 3px solid #ddd;
+            width: 60px;
+            height: 60px;
         }
 
-        .user-card p {
-            font-size: 1.1rem;
-            font-weight: 500;
-            margin-bottom: 15px;
-            color: #444;
+        #search-input {
+            width: 70%;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .container {
+            padding: 10px;
+            margin: 20px auto;
         }
 
-        .button-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
+        h2 {
+            font-size: 1.8rem;
         }
 
-        .user-card button {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            transition: var(--transition);
+        #search-input {
+            width: 60%;
         }
 
-        .blue-verify-btn { background: var(--blue); color: var(--white); }
-        .gold-verify-btn { background: var(--gold); color: #333; }
-        .black-verify-btn { background: var(--black); color: var(--white); }
-        .pink-verify-btn { background: var(--pink); color: var(--white); }
-        .unverify-btn { background: var(--red); color: var(--white); }
-
-        .blue-verify-btn:hover { background: #1976D2; }
-        .gold-verify-btn:hover { background: #FFC107; }
-        .black-verify-btn:hover { background: #555; }
-        .pink-verify-btn:hover { background: #FF4081; }
-        .unverify-btn:hover { background: #D32F2F; }
-
-        .alert {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 15px 30px;
-            border-radius: 8px;
-            box-shadow: var(--shadow);
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.5s ease;
+        .search-container {
+            flex-direction: column;
+            gap: 15px;
         }
-
-        .alert.success { background: #4CAF50; color: var(--white); }
-        .alert.error { background: var(--red); color: var(--white); }
-
-        @media (max-width: 768px) {
-            .user-card { padding: 15px; }
-            .user-card img { width: 60px; height: 60px; }
-            #search-input { width: 70%; }
-        }
-
-        @media (max-width: 480px) {
-            .container { padding: 10px; margin: 20px auto; }
-            h2 { font-size: 1.8rem; }
-            #search-input { width: 60%; }
-            .search-container { flex-direction: column; gap: 15px; }
-        }
+    }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h2>User Verification</h2>
-        
+
         <form id="search-form" method="POST">
             <div class="search-container">
                 <input type="text" id="search-input" name="search_term" placeholder="Search by username or ID...">
                 <button type="submit" id="search-btn" name="manual_search">Search</button>
             </div>
         </form>
-        
+
         <div id="alert-box" class="alert"></div>
-        
+
         <div class="user-list" id="user-list">
             <?php
             if ($result && $result->num_rows > 0) {
@@ -394,9 +459,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['manual_search'])) {
         function showAlert(status, message) {
             const $alert = $('#alert-box');
             $alert.removeClass('success error')
-                  .addClass(status)
-                  .text(message)
-                  .css('opacity', 1);
+                .addClass(status)
+                .text(message)
+                .css('opacity', 1);
             setTimeout(() => $alert.css('opacity', 0), 3000);
         }
 
@@ -408,7 +473,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['manual_search'])) {
             $.ajax({
                 url: '',
                 type: 'POST',
-                data: { user_id: userId, action: action },
+                data: {
+                    user_id: userId,
+                    action: action
+                },
                 dataType: 'json',
                 success: function(response) {
                     showAlert(response.status, response.message);
@@ -433,18 +501,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['manual_search'])) {
                 $.ajax({
                     url: '',
                     type: 'POST',
-                    data: { search_term: request.term },
+                    data: {
+                        search_term: request.term
+                    },
                     dataType: 'json',
                     success: function(data) {
                         if (data.length === 0) {
-                            response([{ label: 'No results found', value: null }]);
+                            response([{
+                                label: 'No results found',
+                                value: null
+                            }]);
                         } else {
                             response(data);
                         }
                     },
                     error: function(xhr, status, error) {
                         console.error('Autocomplete error:', error);
-                        response([{ label: 'Error fetching suggestions', value: null }]);
+                        response([{
+                            label: 'Error fetching suggestions',
+                            value: null
+                        }]);
                     }
                 });
             },
@@ -473,7 +549,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['manual_search'])) {
                 $.ajax({
                     url: '',
                     type: 'POST',
-                    data: { search_term: searchTerm, manual_search: true },
+                    data: {
+                        search_term: searchTerm,
+                        manual_search: true
+                    },
                     success: function() {
                         location.reload();
                     },
@@ -495,4 +574,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['manual_search'])) {
     });
     </script>
 </body>
+
 </html>

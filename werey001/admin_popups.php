@@ -92,122 +92,175 @@ $conn->close();
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Manage Popups</title>
     <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: #f8f9fa;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }
-        .container {
-            max-width: 1000px;
-            width: 100%;
-            background: #fff;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        }
-        h2, h3 {
-            color: #6a1b9a;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-bottom: 40px;
-        }
-        label {
-            font-weight: 600;
-            color: #333;
-        }
-        input, textarea, select {
-            padding: 10px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 1rem;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        input[type="file"] {
-            padding: 5px;
-        }
-        input[type="number"] {
-            width: 100px;
-        }
-        button {
-            padding: 12px;
-            background: #6a1b9a;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background 0.3s;
-        }
-        button:hover {
-            background: #4a148c;
-        }
-        .message {
-            padding: 10px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .success { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
-        .popup-list {
-            margin-top: 20px;
-        }
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: #f8f9fa;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+    }
+
+    .container {
+        max-width: 1000px;
+        width: 100%;
+        background: #fff;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    h2,
+    h3 {
+        color: #6a1b9a;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    form {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-bottom: 40px;
+    }
+
+    label {
+        font-weight: 600;
+        color: #333;
+    }
+
+    input,
+    textarea,
+    select {
+        padding: 10px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 1rem;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    input[type="file"] {
+        padding: 5px;
+    }
+
+    input[type="number"] {
+        width: 100px;
+    }
+
+    button {
+        padding: 12px;
+        background: #6a1b9a;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.3s;
+    }
+
+    button:hover {
+        background: #4a148c;
+    }
+
+    .message {
+        padding: 10px;
+        border-radius: 8px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .success {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .error {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .popup-list {
+        margin-top: 20px;
+    }
+
+    .popup-item {
+        padding: 15px;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #fafafa;
+    }
+
+    .popup-item img {
+        max-width: 100px;
+        border-radius: 5px;
+    }
+
+    .popup-details {
+        flex: 1;
+        margin-right: 15px;
+    }
+
+    .delete-btn {
+        background: #dc3545;
+    }
+
+    .delete-btn:hover {
+        background: #c82333;
+    }
+
+    @media (max-width: 768px) {
         .popup-item {
-            padding: 15px;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #fafafa;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
         }
+
         .popup-item img {
-            max-width: 100px;
-            border-radius: 5px;
+            max-width: 80px;
         }
+    }
+
+    @media (max-width: 480px) {
+        .container {
+            padding: 15px;
+        }
+
+        h2,
+        h3 {
+            font-size: 1.5rem;
+        }
+
+        input,
+        textarea,
+        select,
+        button {
+            font-size: 0.9rem;
+        }
+
         .popup-details {
-            flex: 1;
-            margin-right: 15px;
+            font-size: 0.9rem;
         }
-        .delete-btn {
-            background: #dc3545;
-        }
-        .delete-btn:hover {
-            background: #c82333;
-        }
-        @media (max-width: 768px) {
-            .popup-item { flex-direction: column; align-items: flex-start; gap: 10px; }
-            .popup-item img { max-width: 80px; }
-        }
-        @media (max-width: 480px) {
-            .container { padding: 15px; }
-            h2, h3 { font-size: 1.5rem; }
-            input, textarea, select, button { font-size: 0.9rem; }
-            .popup-details { font-size: 0.9rem; }
-        }
+    }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h2>Manage Popups</h2>
         <?php if (isset($success)): ?>
-            <div class="message success"><?php echo $success; ?></div>
+        <div class="message success"><?php echo $success; ?></div>
         <?php elseif (isset($error)): ?>
-            <div class="message error"><?php echo $error; ?></div>
+        <div class="message error"><?php echo $error; ?></div>
         <?php endif; ?>
 
         <!-- Create Popup Form -->
@@ -222,13 +275,14 @@ $conn->close();
             <input type="text" id="button_text" name="button_text">
 
             <label for="button_link">Button Link (optional):</label>
-            <input type="text" id="button_link" name="button_link" placeholder="Example: amazon.com or https://amazon.com">
+            <input type="text" id="button_link" name="button_link"
+                placeholder="Example: amazon.com or https://amazon.com">
 
             <label for="target_user_id">Target User (leave blank for all):</label>
             <select id="target_user_id" name="target_user_id">
                 <option value="">All Users</option>
                 <?php while ($user = $users_result->fetch_assoc()): ?>
-                    <option value="<?php echo $user['id']; ?>"><?php echo htmlspecialchars($user['username']); ?></option>
+                <option value="<?php echo $user['id']; ?>"><?php echo htmlspecialchars($user['username']); ?></option>
                 <?php endwhile; ?>
             </select>
 
@@ -242,31 +296,34 @@ $conn->close();
         <div class="popup-list">
             <h3>All Popups</h3>
             <?php if ($popups_result->num_rows > 0): ?>
-                <?php while ($popup = $popups_result->fetch_assoc()): ?>
-                    <div class="popup-item">
-                        <div class="popup-details">
-                            <strong>Message:</strong> <?php echo htmlspecialchars($popup['message']); ?><br>
-                            <?php if ($popup['image_path']): ?>
-                                <img src="<?php echo htmlspecialchars($popup['image_path']); ?>" alt="Popup Image"><br>
-                            <?php endif; ?>
-                            <?php if ($popup['button_text']): ?>
-                                <strong>Button:</strong> <?php echo htmlspecialchars($popup['button_text']); ?> (<?php echo htmlspecialchars($popup['button_link']); ?>)<br>
-                            <?php endif; ?>
-                            <strong>Target:</strong> <?php echo $popup['target_user_id'] ? htmlspecialchars($popup['target_username']) : 'All Users'; ?><br>
-                            <strong>Display Limit:</strong> <?php echo $popup['display_limit']; ?><br>
-                            <strong>Total Views:</strong> <?php echo $popup['total_views'] ?: '0'; ?><br>
-                            <strong>Created:</strong> <?php echo $popup['created_at']; ?>
-                        </div>
-                        <form method="POST" onsubmit="return confirm('Are you sure you want to delete this popup?');">
-                            <input type="hidden" name="popup_id" value="<?php echo $popup['id']; ?>">
-                            <button type="submit" name="delete_popup" class="delete-btn">Delete</button>
-                        </form>
-                    </div>
-                <?php endwhile; ?>
+            <?php while ($popup = $popups_result->fetch_assoc()): ?>
+            <div class="popup-item">
+                <div class="popup-details">
+                    <strong>Message:</strong> <?php echo htmlspecialchars($popup['message']); ?><br>
+                    <?php if ($popup['image_path']): ?>
+                    <img src="<?php echo htmlspecialchars($popup['image_path']); ?>" alt="Popup Image"><br>
+                    <?php endif; ?>
+                    <?php if ($popup['button_text']): ?>
+                    <strong>Button:</strong> <?php echo htmlspecialchars($popup['button_text']); ?>
+                    (<?php echo htmlspecialchars($popup['button_link']); ?>)<br>
+                    <?php endif; ?>
+                    <strong>Target:</strong>
+                    <?php echo $popup['target_user_id'] ? htmlspecialchars($popup['target_username']) : 'All Users'; ?><br>
+                    <strong>Display Limit:</strong> <?php echo $popup['display_limit']; ?><br>
+                    <strong>Total Views:</strong> <?php echo $popup['total_views'] ?: '0'; ?><br>
+                    <strong>Created:</strong> <?php echo $popup['created_at']; ?>
+                </div>
+                <form method="POST" onsubmit="return confirm('Are you sure you want to delete this popup?');">
+                    <input type="hidden" name="popup_id" value="<?php echo $popup['id']; ?>">
+                    <button type="submit" name="delete_popup" class="delete-btn">Delete</button>
+                </form>
+            </div>
+            <?php endwhile; ?>
             <?php else: ?>
-                <p>No popups created yet.</p>
+            <p>No popups created yet.</p>
             <?php endif; ?>
         </div>
     </div>
 </body>
+
 </html>

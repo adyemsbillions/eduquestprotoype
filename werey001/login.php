@@ -7,7 +7,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password = $_POST['password'];
 
     // Database connection
-    $conn = new mysqli("localhost", "unimaid9_unimaidresources", "#adyems123AD", "unimaid9_unimaidresources");
+    $conn = new mysqli("localhost", "root", "", "eduquest");
     if ($conn->connect_error) {
         die("Connection failed: " . $conn->connect_error);
     }
@@ -40,85 +40,87 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-        }
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+    }
 
-        .login-container {
-            background-color: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 400px;
-        }
+    .login-container {
+        background-color: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 400px;
+    }
 
-        h2 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 1.5rem;
-        }
+    h2 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 1.5rem;
+    }
 
-        form {
-            display: flex;
-            flex-direction: column;
-        }
+    form {
+        display: flex;
+        flex-direction: column;
+    }
 
-        label {
-            margin-bottom: 0.5rem;
-            color: #555;
-            font-weight: bold;
-        }
+    label {
+        margin-bottom: 0.5rem;
+        color: #555;
+        font-weight: bold;
+    }
 
-        input[type="text"],
-        input[type="password"] {
-            padding: 0.8rem;
-            margin-bottom: 1rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
-        }
+    input[type="text"],
+    input[type="password"] {
+        padding: 0.8rem;
+        margin-bottom: 1rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+        transition: border-color 0.3s;
+    }
 
-        input[type="text"]:focus,
-        input[type="password"]:focus {
-            border-color: #007bff;
-            outline: none;
-        }
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+        border-color: #007bff;
+        outline: none;
+    }
 
-        button {
-            background-color: #007bff;
-            color: white;
-            padding: 0.8rem;
-            border: none;
-            border-radius: 4px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
+    button {
+        background-color: #007bff;
+        color: white;
+        padding: 0.8rem;
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
 
-        button:hover {
-            background-color: #0056b3;
-        }
+    button:hover {
+        background-color: #0056b3;
+    }
 
-        .error {
-            color: #dc3545;
-            text-align: center;
-            margin-top: 1rem;
-        }
+    .error {
+        color: #dc3545;
+        text-align: center;
+        margin-top: 1rem;
+    }
     </style>
 </head>
+
 <body>
     <div class="login-container">
         <h2>Admin Login</h2>
@@ -144,4 +146,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         ?>
     </div>
 </body>
+
 </html>

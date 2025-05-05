@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             $_SESSION['profile_picture'] = $user['profile_picture'];
             $_SESSION['user_id'] = $user['id'];  // Store user ID to identify them
             // Redirect to dashboard after successful login
-            header("Location: dashboard/dashboard.php");
+            header("Location: checker.php");
             exit(); // Don't forget to exit after the redirect
         } else {
             $loginError = "Invalid credentials.";

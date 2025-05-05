@@ -317,7 +317,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     if ($auth->handleLogin($_POST)) {
         $redirect = isset($_SESSION['redirect_reel'])
             ? "dashboard/reels.php?reel=" . $_SESSION['redirect_reel']
-            : "dashboard/dashboard.php";
+            : "dashboard/checker.php";
         unset($_SESSION['redirect_reel']);
         header("Location: $redirect");
         exit();
@@ -327,6 +327,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
+
 <head>
     <meta charset="UTF-8">
     <title>Login and Registration | UNIMAID Resources</title>
@@ -361,7 +362,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         width: 100%;
         background: #fff;
         padding: 40px 30px;
-        box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
         perspective: 2700px;
     }
 
@@ -499,7 +500,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         padding: 0 30px;
         font-size: 16px;
         font-weight: 500;
-        border-bottom: 2px solid rgba(0,0,0,0.2);
+        border-bottom: 2px solid rgba(0, 0, 0, 0.2);
         transition: all 0.3s ease;
     }
 
@@ -628,6 +629,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     }
     </style>
 </head>
+
 <body>
     <div class="container">
         <input type="checkbox" id="flip">
@@ -649,48 +651,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         </div>
         <div class="forms">
             <div class="form-content">
-               <div class="login-form">
-    <div class="title">Login</div>
-    <form method="POST" action="">
-        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-        <div class="input-boxes">
-            <div class="input-box">
-                <i class="fas fa-envelope"></i>
-                <input type="text" name="email" placeholder="Enter your username or email" required>
-            </div>
-            <div class="input-box">
-                <i class="fas fa-lock"></i>
-                <input type="password" id="login-password" name="password"
-                    placeholder="Enter your password" required>
-                <i class="fas fa-eye eye-icon" id="login-eye"></i>
-            </div>
-            <?php if (!empty($auth->getErrors())): ?>
-            <p style="color: red;">
-                <?php echo implode('<br>', $auth->getErrors()); ?>
-                <?php if (in_array("Please verify your email address first. Check your inbox.", $auth->getErrors())): ?>
-                <br><a href="resend_verification.php?email=<?= urlencode($_POST['email'] ?? '') ?>">Resend verification email</a>
-                <?php endif; ?>
-            </p>
-            <?php endif; ?>
-            <?php if (isset($_GET['signup']) && $_GET['signup'] === 'success'): ?>
-            <?php if (isset($_GET['verify']) && $_GET['verify'] === 'email_sent'): ?>
-            <p style="color: green;">Account created successfully. Verification email sent to <strong><?php echo isset($_GET['email']) ? htmlspecialchars(urldecode($_GET['email'])) : 'your email'; ?></strong>. Please check your inbox.</p>
-            <?php elseif (isset($_GET['verify']) && $_GET['verify'] === 'email_failed'): ?>
-            <p style="color: orange;">Account created but failed to send verification email: <?php echo isset($_GET['error']) ? htmlspecialchars(urldecode($_GET['error'])) : 'Unknown error occurred'; ?></p>
-            <?php else: ?>
-            <p style="color: green;">Account created successfully. Please log in.</p>
-            <?php endif; ?>
-            <?php endif; ?>
-            <div class="text"><a href="forgot_password.php">Forgot password?</a></div>
-            <div class="button input-box">
-                <input type="submit" name="login" value="Login">
-                <span class="loader"></span>
-            </div>
-            <div class="text sign-up-text">Don't have an account? <label for="flip">Signup now</label>
-            </div>
-        </div>
-    </form>
-</div>
+                <div class="login-form">
+                    <div class="title">Login</div>
+                    <form method="POST" action="">
+                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                        <div class="input-boxes">
+                            <div class="input-box">
+                                <i class="fas fa-envelope"></i>
+                                <input type="text" name="email" placeholder="Enter your username or email" required>
+                            </div>
+                            <div class="input-box">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="login-password" name="password"
+                                    placeholder="Enter your password" required>
+                                <i class="fas fa-eye eye-icon" id="login-eye"></i>
+                            </div>
+                            <?php if (!empty($auth->getErrors())): ?>
+                            <p style="color: red;">
+                                <?php echo implode('<br>', $auth->getErrors()); ?>
+                                <?php if (in_array("Please verify your email address first. Check your inbox.", $auth->getErrors())): ?>
+                                <br><a
+                                    href="resend_verification.php?email=<?= urlencode($_POST['email'] ?? '') ?>">Resend
+                                    verification email</a>
+                                <?php endif; ?>
+                            </p>
+                            <?php endif; ?>
+                            <?php if (isset($_GET['signup']) && $_GET['signup'] === 'success'): ?>
+                            <?php if (isset($_GET['verify']) && $_GET['verify'] === 'email_sent'): ?>
+                            <p style="color: green;">Account created successfully. Verification email sent to
+                                <strong><?php echo isset($_GET['email']) ? htmlspecialchars(urldecode($_GET['email'])) : 'your email'; ?></strong>.
+                                Please check your inbox.
+                            </p>
+                            <?php elseif (isset($_GET['verify']) && $_GET['verify'] === 'email_failed'): ?>
+                            <p style="color: orange;">Account created but failed to send verification email:
+                                <?php echo isset($_GET['error']) ? htmlspecialchars(urldecode($_GET['error'])) : 'Unknown error occurred'; ?>
+                            </p>
+                            <?php else: ?>
+                            <p style="color: green;">Account created successfully. Please log in.</p>
+                            <?php endif; ?>
+                            <?php endif; ?>
+                            <div class="text"><a href="forgot_password.php">Forgot password?</a></div>
+                            <div class="button input-box">
+                                <input type="submit" name="login" value="Login">
+                                <span class="loader"></span>
+                            </div>
+                            <div class="text sign-up-text">Don't have an account? <label for="flip">Signup now</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
                 <div class="signup-form">
                     <div class="title">Signup</div>
                     <form method="POST"
@@ -785,6 +794,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     }
     </script>
 </body>
+
 </html>
 <?php
 $conn->close();

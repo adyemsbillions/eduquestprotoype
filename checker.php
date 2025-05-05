@@ -185,16 +185,6 @@ include('db_connection.php');
         gap: 15px;
     }
 
-    .fab-main {
-        background: rgba(0, 0, 0, 0.7);
-        padding: 12px;
-        border-radius: 50%;
-        color: white;
-        font-size: 24px;
-        cursor: pointer;
-        transition: transform 0.3s ease;
-    }
-
     .fab-buttons {
         display: flex;
         flex-direction: column;
@@ -396,11 +386,6 @@ include('db_connection.php');
             bottom: 160px;
         }
 
-        .fab-main {
-            padding: 14px;
-            font-size: 28px;
-        }
-
         .fab-button {
             padding: 12px;
             font-size: 20px;
@@ -491,7 +476,6 @@ include('db_connection.php');
                 <div class="fab-button"><i class="fa-solid fa-cart-shopping"></i></div>
                 <div class="fab-button"><i class="fa-solid fa-calendar-days"></i></div>
             </div>
-            <!-- <div class="fab-main" id="fabMain"><i class="fa-solid fa-plus"></i></div> -->
         </div>
 
         <!-- Comments Section -->
@@ -511,12 +495,11 @@ include('db_connection.php');
         <!-- Scroll Tutorial -->
         <div class="scroll-tutorial" id="scrollTutorial">
             <i class="fa-solid fa-hand scroll-hand"></i>
-            <div class="scroll-text">Swipe down watch videos</div>
+            <div class="scroll-text">Swipe down to see more</div>
         </div>
     </div>
 
     <script>
-    const fabMain = document.getElementById('fabMain');
     const fabMainBottom = document.getElementById('fabMainBottom');
     const fabButtons = document.getElementById('fabButtons');
     const moreButton = document.getElementById('moreButton');
@@ -529,11 +512,12 @@ include('db_connection.php');
         fabButtons.classList.toggle('show');
     }
 
-    fabMain.addEventListener('click', toggleFabButtons);
     fabMainBottom.addEventListener('click', toggleFabButtons);
 
     // Toggle sidebar
-    moreButton.addEventListener('click', () => {
+    moreButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        console.log('More button clicked'); // Debugging
         sidebar.classList.add('show');
     });
 
@@ -566,7 +550,6 @@ include('db_connection.php');
         } else {
             sidebar.style.height = 'calc(100% - 110px)';
         }
-
     });
     </script>
 </body>

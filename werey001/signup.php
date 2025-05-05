@@ -5,11 +5,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);  // Hash password
 
     // Database connection
-    $conn = new mysqli("localhost", "root", "", "UNIMAIDCONNECT");
-    if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
-    }
-
+    include('db_connection.php');
     // Insert admin into the database
     $sql = "INSERT INTO admins (username, password) VALUES (?, ?)";
     $stmt = $conn->prepare($sql);
@@ -28,11 +24,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Signup</title>
 </head>
+
 <body>
     <h2>Admin Signup</h2>
     <form method="POST" action="">
@@ -45,4 +43,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <button type="submit">Sign Up</button>
     </form>
 </body>
+
 </html>

@@ -68,71 +68,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Post New Ad</title>
-    
+
     <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f4f4f9;
-            margin: 0;
-            padding: 0;
-        }
-        header {
-            background-color:purple;
-            color: white;
-            text-align: center;
-            padding: 20px;
-        }
-        h1 {
-            font-size: 2.5rem;
-        }
-        .container {
-            width: 50%;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        form {
-            display: flex;
-            flex-direction: column;
-        }
-        label {
-            margin-bottom: 8px;
-            font-size: 1.1rem;
-            color: #333;
-        }
-        input[type="file"], input[type="url"] {
-            padding: 10px;
-            font-size: 1rem;
-            margin-bottom: 20px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-        }
-        input[type="submit"] {
-            background-color: purple;
-            color: white;
-            padding: 12px;
-            font-size: 1.1rem;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-        input[type="submit"]:hover {
-            background-color:purple;
-        }
-        .error {
-            color: red;
-            font-size: 1rem;
-            margin-bottom: 20px;
-        }
+    body {
+        font-family: 'Arial', sans-serif;
+        background-color: #f4f4f9;
+        margin: 0;
+        padding: 0;
+    }
+
+    header {
+        background-color: purple;
+        color: white;
+        text-align: center;
+        padding: 20px;
+    }
+
+    h1 {
+        font-size: 2.5rem;
+    }
+
+    .container {
+        width: 50%;
+        margin: 0 auto;
+        background-color: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    form {
+        display: flex;
+        flex-direction: column;
+    }
+
+    label {
+        margin-bottom: 8px;
+        font-size: 1.1rem;
+        color: #333;
+    }
+
+    input[type="file"],
+    input[type="url"] {
+        padding: 10px;
+        font-size: 1rem;
+        margin-bottom: 20px;
+        border: 2px solid #ddd;
+        border-radius: 5px;
+    }
+
+    input[type="submit"] {
+        background-color: purple;
+        color: white;
+        padding: 12px;
+        font-size: 1.1rem;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    input[type="submit"]:hover {
+        background-color: purple;
+    }
+
+    .error {
+        color: red;
+        font-size: 1rem;
+        margin-bottom: 20px;
+    }
     </style>
 </head>
+
 <body>
 
     <header>
@@ -153,4 +165,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
 </body>
+
 </html>

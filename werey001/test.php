@@ -39,6 +39,7 @@ $conn->close();
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -46,64 +47,68 @@ $conn->close();
     <!-- Include Chart.js from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f9f9f9;
-        }
-        .chart-container {
-            width: 60%;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        h2 {
-            text-align: center;
-            color: #6a1b9a;
-        }
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f9f9f9;
+    }
+
+    .chart-container {
+        width: 60%;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    h2 {
+        text-align: center;
+        color: #6a1b9a;
+    }
     </style>
 </head>
+
 <body>
 
-<div class="chart-container">
-    <h2>Profile Completion Chart</h2>
-    <canvas id="profileChart"></canvas>
-</div>
+    <div class="chart-container">
+        <h2>Profile Completion Chart</h2>
+        <canvas id="profileChart"></canvas>
+    </div>
 
-<script>
-// Data for the chart
-const ctx = document.getElementById('profileChart').getContext('2d');
-const profileChart = new Chart(ctx, {
-    type: 'pie', // You can change this to 'bar', 'line', etc.
-    data: {
-        labels: ['Completed Profiles', 'Incomplete Profiles'],
-        datasets: [{
-            label: 'Profile Completion',
-            data: [<?php echo $completed_profiles; ?>, <?php echo $incomplete_profiles; ?>],
-            backgroundColor: ['#4caf50', '#ff5722'],
-            hoverOffset: 4
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: {
-                position: 'top',
-            },
-            tooltip: {
-                callbacks: {
-                    label: function(tooltipItem) {
-                        return tooltipItem.label + ': ' + tooltipItem.raw + ' users';
+    <script>
+    // Data for the chart
+    const ctx = document.getElementById('profileChart').getContext('2d');
+    const profileChart = new Chart(ctx, {
+        type: 'pie', // You can change this to 'bar', 'line', etc.
+        data: {
+            labels: ['Completed Profiles', 'Incomplete Profiles'],
+            datasets: [{
+                label: 'Profile Completion',
+                data: [<?php echo $completed_profiles; ?>, <?php echo $incomplete_profiles; ?>],
+                backgroundColor: ['#4caf50', '#ff5722'],
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(tooltipItem) {
+                            return tooltipItem.label + ': ' + tooltipItem.raw + ' users';
+                        }
                     }
                 }
             }
         }
-    }
-});
-</script>
+    });
+    </script>
 
 </body>
+
 </html>

@@ -43,63 +43,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload Media</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f4f4f4;
-        }
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f4f4f4;
+    }
 
-        .upload-container {
-            width: 100%;
-            max-width: 500px;
-            padding: 20px;
-            border: 1px solid #ccc;
-            background-color: #fff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
+    .upload-container {
+        width: 100%;
+        max-width: 500px;
+        padding: 20px;
+        border: 1px solid #ccc;
+        background-color: #fff;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
 
-        .upload-container h1 {
-            margin-bottom: 20px;
-        }
+    .upload-container h1 {
+        margin-bottom: 20px;
+    }
 
-        .upload-container input[type="file"] {
-            margin-bottom: 20px;
-        }
+    .upload-container input[type="file"] {
+        margin-bottom: 20px;
+    }
 
-        .upload-container button {
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-            cursor: pointer;
-        }
+    .upload-container button {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+    }
 
-        .upload-container button:hover {
-            background-color: #0056b3;
-        }
+    .upload-container button:hover {
+        background-color: #0056b3;
+    }
 
-        .message {
-            margin-top: 20px;
-            color: green;
-        }
+    .message {
+        margin-top: 20px;
+        color: green;
+    }
 
-        .error {
-            margin-top: 20px;
-            color: red;
-        }
+    .error {
+        margin-top: 20px;
+        color: red;
+    }
     </style>
 </head>
+
 <body>
     <div class="upload-container">
         <h1>Upload Media</h1>
@@ -112,19 +114,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script>
-        document.getElementById('uploadForm').addEventListener('submit', function (e) {
-            e.preventDefault(); // Prevent form submission
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault(); // Prevent form submission
 
-            const formData = new FormData(this);
-            const messageDiv = document.getElementById('message');
-            const errorDiv = document.getElementById('error');
+        const formData = new FormData(this);
+        const messageDiv = document.getElementById('message');
+        const errorDiv = document.getElementById('error');
 
-            // Clear previous messages
-            messageDiv.textContent = '';
-            errorDiv.textContent = '';
+        // Clear previous messages
+        messageDiv.textContent = '';
+        errorDiv.textContent = '';
 
-            // Send the file to the server
-            fetch('', { // Use an empty string to submit to the same file
+        // Send the file to the server
+        fetch('', { // Use an empty string to submit to the same file
                 method: 'POST',
                 body: formData
             })
@@ -140,7 +142,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 errorDiv.textContent = 'An error occurred. Please try again.';
                 console.error('Error:', error); // Log errors to the console
             });
-        });
+    });
     </script>
 </body>
+
 </html>

@@ -13,4 +13,3 @@ while ($row = $result->fetch_assoc()) {
     echo "<div class='message $class'>$content</div>";
 }
 $conn->close();
-?>

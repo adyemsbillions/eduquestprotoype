@@ -53,118 +53,122 @@ if ($result) {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Delete Posts</title>
-  <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-        }
+    <style>
+    body {
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+    }
 
-        .container {
-            max-width: 900px;
-            width: 100%;
-            margin: 20px auto;
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            overflow-y: auto;
-            height: calc(100vh - 60px);
-        }
+    .container {
+        max-width: 900px;
+        width: 100%;
+        margin: 20px auto;
+        background-color: #ffffff;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        overflow-y: auto;
+        height: calc(100vh - 60px);
+    }
 
-        h1 {
-            text-align: center;
-            color: #333;
-            font-size: 28px;
-            margin-bottom: 20px;
-        }
+    h1 {
+        text-align: center;
+        color: #333;
+        font-size: 28px;
+        margin-bottom: 20px;
+    }
 
-        .post {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+    .post {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
 
-        .post h2 {
-            margin: 0;
-            font-size: 20px;
-            color: #0078d4;
-        }
+    .post h2 {
+        margin: 0;
+        font-size: 20px;
+        color: #0078d4;
+    }
 
-        .post .username {
-            font-weight: bold;
-            font-size: 18px;
-        }
+    .post .username {
+        font-weight: bold;
+        font-size: 18px;
+    }
 
-        .post .timestamp {
-            font-size: 0.85em;
-            color: #777;
-        }
+    .post .timestamp {
+        font-size: 0.85em;
+        color: #777;
+    }
 
-        .post .content {
-            margin-top: 10px;
-            font-size: 16px;
-            line-height: 1.5;
-        }
+    .post .content {
+        margin-top: 10px;
+        font-size: 16px;
+        line-height: 1.5;
+    }
 
-        .post img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-            margin-top: 10px;
-        }
+    .post img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        margin-top: 10px;
+    }
 
-        .comment-count {
-            color: #777;
-            font-size: 0.85em;
-            margin-top: 5px;
-            text-align: right;
-        }
+    .comment-count {
+        color: #777;
+        font-size: 0.85em;
+        margin-top: 5px;
+        text-align: right;
+    }
 
-        .delete-button {
-            background-color: #ff4d4d;
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-        }
+    .delete-button {
+        background-color: #ff4d4d;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+    }
 
-        .delete-button:hover {
-            background-color: #cc0000;
-        }
+    .delete-button:hover {
+        background-color: #cc0000;
+    }
     </style>
 </head>
+
 <body>
 
-<div class="container">
-    <h1>Delete Posts</h1>
+    <div class="container">
+        <h1>Delete Posts</h1>
 
-    <!-- Displaying posts with delete option -->
-    <div class="posts">
-        <?php foreach ($posts as $post): ?>
+        <!-- Displaying posts with delete option -->
+        <div class="posts">
+            <?php foreach ($posts as $post): ?>
             <div class="post">
-                <h2 class="username"><?php echo htmlspecialchars($post['username']); ?> - <?php echo htmlspecialchars($post['club']); ?></h2>
+                <h2 class="username"><?php echo htmlspecialchars($post['username']); ?> -
+                    <?php echo htmlspecialchars($post['club']); ?></h2>
                 <p class="content"><?php echo nl2br(htmlspecialchars($post['post_content'])); ?></p>
 
                 <!-- Display image if available -->
                 <?php if ($post['image_path']): ?>
-                    <img src="<?php echo htmlspecialchars($post['image_path']); ?>" alt="Post Image" style="max-width: 100%; height: auto;">
+                <img src="<?php echo htmlspecialchars($post['image_path']); ?>" alt="Post Image"
+                    style="max-width: 100%; height: auto;">
                 <?php endif; ?>
 
                 <span class="timestamp"><?php echo $post['post_timestamp']; ?></span>
@@ -178,9 +182,10 @@ if ($result) {
                     <button type="submit" name="delete_post" class="delete-button">Delete Post</button>
                 </form>
             </div>
-        <?php endforeach; ?>
+            <?php endforeach; ?>
+        </div>
     </div>
-</div>
 
 </body>
+
 </html>
